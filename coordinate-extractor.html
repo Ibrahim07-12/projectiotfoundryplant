@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Layout Coordinate Extractor</title>
+    <style>
+        body { font-family: monospace; padding: 20px; background: #f0f0f0; }
+        .container { background: white; padding: 20px; border-radius: 8px; }
+        button { padding: 10px 20px; margin: 10px; font-size: 16px; cursor: pointer; }
+        .coordinates { background: #f8f8f8; padding: 15px; margin: 10px 0; border-radius: 4px; }
+        pre { overflow-x: auto; }
+        .copy-btn { background: #007bff; color: white; border: none; border-radius: 4px; }
+        .clear-btn { background: #dc3545; color: white; border: none; border-radius: 4px; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h2>🎯 Layout Coordinate Extractor</h2>
+        <p>Tool untuk mengekstrak koordinat layout dari localStorage</p>
+        
+        <button class="copy-btn" onclick="extractCoordinates()">📐 Extract Current Coordinates</button>
+        <button class="clear-btn" onclick="clearStorage()">🧹 Clear localStorage</button>
+        
+        <div id="output"></div>
+    </div>
+
+    <script>
+        function extractCoordinates() {
+            const positions = localStorage.getItem('iot-plant-positions');
+            const defaultPositions = localStorage.getItem('iot-plant-default-positions');
+            
+            let output = '<div class="coordinates">';
+            output += '<h3>📊 Current Layout Positions:</h3>';
+            
+            if (positions) {
+                try {
+                    const parsed = JSON.parse(positions);
+                    output += '<pre>' + JSON.stringify(parsed, null, 2) + '</pre>';
+                    output += '<button class="copy-btn" onclick="copyToClipboard(\'' + 
+                             positions.replace(/'/g, "\\'") + '\')">📋 Copy JSON</button>';
+                } catch (e) {
+                    output += '<p>❌ Error parsing positions: ' + e.message + '</p>';
+                }
+            } else {
+                output += '<p>❌ No saved positions found in localStorage</p>';
+            }
+            
+            if (defaultPositions) {
+                output += '<h3>⚡ Default Layout Positions:</h3>';
+                try {
+                    const parsed = JSON.parse(defaultPositions);
+                    output += '<pre>' + JSON.stringify(parsed, null, 2) + '</pre>';
+                    output += '<button class="copy-btn" onclick="copyToClipboard(\'' + 
+                             defaultPositions.replace(/'/g, "\\'") + '\')">📋 Copy Default JSON</button>';
+                } catch (e) {
+                    output += '<p>❌ Error parsing default positions: ' + e.message + '</p>';
+                }
+            }
+            
+            output += '<h3>🔧 TypeScript Code Format:</h3>';
+            if (positions) {
+                const tsCode = generateTypeScriptCode(JSON.parse(positions));
+                output += '<pre>' + tsCode + '</pre>';
+                output += '<button class="copy-btn" onclick="copyToClipboard(\'' + 
+                         tsCode.replace(/'/g, "\\'").replace(/\n/g, '\\n') + '\')">📋 Copy TypeScript</button>';
+            }
+            
+            output += '</div>';
+            document.getElementById('output').innerHTML = output;
+        }
+        
+        function generateTypeScriptCode(positions) {
+            let code = 'const defaultPositions = {\n';
+            for (const [key, pos] of Object.entries(positions)) {
+                code += `  '${key}': { `;
+                code += `top: ${pos.top}, left: ${pos.left}, `;
+                code += `width: ${pos.width}, height: ${pos.height}`;
+                if (pos.customShape) {
+                    code += `, customShape: '${pos.customShape}'`;
+                }
+                code += ' },\n';
+            }
+            code += '};';
+            return code;
+        }
+        
+        function copyToClipboard(text) {
+            navigator.clipboard.writeText(text.replace(/\\'/g, "'").replace(/\\n/g, "\n")).then(() => {
+                alert('📋 Copied to clipboard!');
+            });
+        }
+        
+        function clearStorage() {
+            if (confirm('⚠️ Are you sure? This will clear all saved layout positions.')) {
+                localStorage.removeItem('iot-plant-positions');
+                localStorage.removeItem('iot-plant-default-positions');
+                alert('🧹 localStorage cleared!');
+                document.getElementById('output').innerHTML = '<p>✅ Storage cleared. Refresh the main website to use default positions.</p>';
+            }
+        }
+        
+        // Auto extract on load
+        window.onload = extractCoordinates;
+    </script>
+</body>
+</html>
