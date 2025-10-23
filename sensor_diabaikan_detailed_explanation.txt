@@ -1,0 +1,144 @@
+/*
+=================== PENJELASAN "SENSOR DIABAIKAN" ===================
+
+KONTEKS: Sistem IoT Foundry Plant dengan 2 mode operasi
+
+┌─────────────────────────────────────────────────────────────────────┐
+│                          AUTO MODE                                  │
+│                     (Sensor Mengontrol)                            │
+├─────────────────────────────────────────────────────────────────────┤
+│                                                                     │
+│  Sensor1 (Pin 35) ────┬─── ESP32 Logic ───┬─── Kontaktor 1        │
+│                       │                   │                       │
+│  HIGH = No voltage ───┤                   ├─── K1 OFF (automatic) │
+│  LOW  = Has voltage ──┤                   ├─── K1 ON  (automatic) │
+│                       │                   │                       │
+│  Sensor2 (Pin 34) ────┤                   ├─── Kontaktor 2        │
+│                       │                   │                       │
+│  HIGH = No voltage ───┤                   ├─── K2 OFF (automatic) │
+│  LOW  = Has voltage ──┴───────────────────┴─── K2 ON  (automatic) │
+│                                                                     │
+│  Result: OTOMATIS - Operator tidak perlu campur tangan             │
+└─────────────────────────────────────────────────────────────────────┘
+
+┌─────────────────────────────────────────────────────────────────────┐
+│                       MANUAL PANEL MODE                            │
+│                      (Sensor Diabaikan)                            │
+├─────────────────────────────────────────────────────────────────────┤
+│                                                                     │
+│  Sensor1 (Pin 35) ────┬─── ESP32 Logic ───┬─── [IGNORED]          │
+│                       │                   │                       │
+│  HIGH = No voltage ───┤   READ but        ├─── No action         │
+│  LOW  = Has voltage ──┤   NO ACTION       ├─── No action         │
+│                       │                   │                       │
+│  Sensor2 (Pin 34) ────┤                   ├─── [IGNORED]          │
+│                       │                   │                       │
+│  HIGH = No voltage ───┤   READ but        ├─── No action         │
+│  LOW  = Has voltage ──┴── NO ACTION ──────┴─── No action         │
+│                                                                     │
+│  Button K1 (Pin 25) ──────── ESP32 Logic ─────── Kontaktor 1      │
+│  PRESS = K1 ON                                                     │
+│  RELEASE = K1 OFF                                                  │
+│                                                                     │
+│  Button K2 (Pin 26) ──────── ESP32 Logic ─────── Kontaktor 2      │
+│  PRESS = K2 ON                                                     │
+│  RELEASE = K2 OFF                                                  │
+│                                                                     │
+│  Result: MANUAL - Operator kontrol penuh dengan push button        │
+└─────────────────────────────────────────────────────────────────────┘
+
+KODE IMPLEMENTATION LOGIC:
+=========================
+
+void checkVoltageDetectors() {
+  // Sensor SELALU dibaca (untuk monitoring)
+  voltage1Detected = digitalRead(sensor1) == HIGH;
+  voltage2Detected = digitalRead(sensor2) == HIGH;
+
+  if (autoModeEnabled) {
+    // ========== AUTO MODE ==========
+    // Sensor reading → Kontaktor action
+    
+    if (!voltage1Detected) {        // Sensor1 LOW
+      activateContractor(1);        // ← ACTION EXECUTED
+      Serial.println("AUTO: Sensor1 LOW → K1 ON");
+    }
+    
+    if (voltage2Detected) {         // Sensor2 HIGH  
+      deactivateContractor(2);      // ← ACTION EXECUTED
+      Serial.println("AUTO: Sensor2 HIGH → K2 OFF");
+    }
+    
+  } else {
+    // ========== MANUAL PANEL MODE ==========
+    // Sensor reading → NO ACTION (DIABAIKAN)
+    
+    if (!voltage1Detected) {        // Sensor1 LOW
+      // ❌ NO activateContractor(1)   ← ACTION SKIPPED/IGNORED
+      Serial.println("MANUAL: Sensor1 LOW → IGNORED (no action)");
+    }
+    
+    if (voltage2Detected) {         // Sensor2 HIGH
+      // ❌ NO deactivateContractor(2) ← ACTION SKIPPED/IGNORED  
+      Serial.println("MANUAL: Sensor2 HIGH → IGNORED (no action)");
+    }
+    
+    Serial.println("Use push buttons to control contactors");
+  }
+}
+
+void checkManualPanelButtons() {
+  if (!autoModeEnabled) {  // Hanya dalam manual mode
+    
+    // Button control - INI yang bekerja dalam manual mode
+    if (digitalRead(MANUAL_K1_BUTTON) == LOW) {    // Button pressed
+      activateContractor(1);     // ← MANUAL ACTION
+      Serial.println("MANUAL: Button K1 pressed → K1 ON");
+    } else {                                       // Button released
+      deactivateContractor(1);   // ← MANUAL ACTION
+      Serial.println("MANUAL: Button K1 released → K1 OFF");
+    }
+  }
+}
+
+SKENARIO KONKRET:
+================
+
+Situasi: Sensor1 berubah dari HIGH ke LOW (ada tegangan terdeteksi)
+
+AUTO MODE:
+- Sensor1: HIGH → LOW
+- ESP32: "Sensor change detected"
+- Logic: if (!voltage1Detected) { activateContractor(1); }
+- Action: Kontaktor 1 menyala OTOMATIS
+- Operator: Tidak perlu berbuat apa-apa
+
+MANUAL PANEL MODE:
+- Sensor1: HIGH → LOW  
+- ESP32: "Sensor change detected but IGNORED in manual mode"
+- Logic: Sensor logic di-skip, tidak ada activateContractor()
+- Action: Kontaktor 1 TIDAK berubah
+- Operator: Harus tekan button K1 untuk nyalakan kontaktor
+
+KENAPA "DIABAIKAN"?
+==================
+
+✅ Sensor tetap dibaca (tidak error/rusak)
+✅ Sensor data ditampilkan di Blynk/Firebase  
+❌ Sensor TIDAK memicu action kontaktor
+❌ Sensor TIDAK mengeksekusi activateContractor()
+
+Analoginya:
+- Seperti speedometer mobil yang tetap menunjukkan kecepatan
+- Tapi tidak mengontrol gas/rem (manual driving)
+- Data speedometer "diabaikan" untuk kontrol, tapi tetap informatif
+
+KEUNTUNGAN MANUAL MODE:
+======================
+1. Override sensor error/fault
+2. Testing kontaktor individual  
+3. Emergency manual control
+4. Bypass automation saat maintenance
+5. Training operator
+6. Troubleshooting sistem
+*/

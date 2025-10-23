@@ -1,8 +1,211 @@
-import { useState, useRef, useEffect } from 'react';
+// Komponen khusus Lane C D Utara untuk monitoring daya
+import React, { useState, useRef, useEffect } from 'react';
+
+type LaneCDUtaraPanelProps = {
+  isOn: boolean;
+  areaKey: string;
+  getAreaName: (areaNum: number) => string;
+  toggleArea: (areaKey: string) => void;
+  toggleMainLane: (areaKey: string) => void;
+  kontaktorKeys: string[];
+  areaStates: Record<string, boolean>;
+  toggleKontaktor: (kontaktorKey: string) => void;
+};
+
+function LaneCDUtaraPanel({ isOn, areaKey, getAreaName, toggleArea, toggleMainLane, kontaktorKeys, areaStates, toggleKontaktor }: LaneCDUtaraPanelProps) {
+  // Dummy state, ganti dengan hook Firebase jika sudah siap
+  const [boxPanel] = useState<{ voltage: number; current: number; power: number; daily: any[]; monthlyKwh: number; monthlyKwhByMonth: Record<string, number> }>({ voltage: 0, current: 0, power: 0, daily: [], monthlyKwh: 0, monthlyKwhByMonth: {} });
+  const [showPowerGraph, setShowPowerGraph] = useState(false);
+  // Dropdown tahun dan bulan
+  const now = new Date();
+  const thisYear = now.getFullYear();
+  const [selectedYear, setSelectedYear] = useState(thisYear);
+  const [selectedMonth, setSelectedMonth] = useState(now.getMonth() + 1); // 1-12
+  // Daftar tahun: 2025 sampai 5 tahun ke depan
+  const yearOptions = Array.from({ length: 6 }, (_, i) => thisYear - 1 + i); // 2024-2029
+  // Daftar bulan: 1-12
+  const monthOptions = Array.from({ length: 12 }, (_, i) => ({
+    value: i + 1,
+    label: new Date(2000, i).toLocaleString('id-ID', { month: 'long' })
+  }));
+  // Key untuk ambil kWh: 'YYYY-MM'
+  const kwhKey = `${selectedYear}-${String(selectedMonth).padStart(2, '0')}`;
+  const kwhBulanIni = boxPanel.monthlyKwhByMonth?.[kwhKey] ?? 0;
+  return (
+    <div style={{
+      display: 'flex',
+      flexDirection: 'column',
+      marginBottom: '8px',
+      backgroundColor: 'white',
+      padding: '12px',
+      borderRadius: '6px',
+      boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
+      border: isOn ? '2px solid #4caf50' : '2px solid #f44336',
+      position: 'relative'
+    }}>
+      <div style={{ display: 'flex', alignItems: 'center' }}>
+        {/* Status Indicator Circle */}
+        <div style={{
+          width: '20px',
+          height: '20px',
+          borderRadius: '50%',
+          backgroundColor: isOn ? '#4caf50' : '#f44336',
+          marginRight: '10px',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          boxShadow: '0 2px 4px rgba(0,0,0,0.2)'
+        }}>
+          <div style={{
+            width: '6px',
+            height: '6px',
+            borderRadius: '50%',
+            backgroundColor: 'white'
+          }}></div>
+        </div>
+        {/* Area Info */}
+        <div style={{ flex: 1 }}>
+          <div style={{ fontWeight: 'bold', color: '#333', fontSize: '13px' }}>
+            {getAreaName(10)}
+          </div>
+          {/* Ganti label dengan pembacaan realtime */}
+          <div style={{ fontSize: '11px', color: '#333', display: 'flex', gap: 12 }}>
+            <span><b>Tegangan:</b> {boxPanel.voltage.toFixed(1)} V</span>
+            <span><b>Arus:</b> {boxPanel.current.toFixed(2)} A</span>
+            <span><b>Daya:</b> {boxPanel.power.toFixed(1)} W</span>
+          </div>
+        </div>
+        {/* ON/OFF Button */}
+        <button
+          onClick={() => kontaktorKeys.length > 0 ? toggleMainLane(areaKey) : toggleArea(areaKey)}
+          style={{
+            backgroundColor: isOn ? '#4caf50' : '#f44336',
+            color: 'white',
+            border: 'none',
+            padding: '6px 12px',
+            borderRadius: '4px',
+            cursor: 'pointer',
+            fontSize: '11px',
+            fontWeight: 'bold',
+            minWidth: '45px',
+            transition: 'all 0.2s ease',
+            marginLeft: 10
+          }}
+        >
+          {isOn ? 'ON' : 'OFF'}
+        </button>
+      </div>
+
+      {/* Individual Kontaktor Controls */}
+      {kontaktorKeys.length > 0 && (
+        <div style={{
+          backgroundColor: '#f8f9fa',
+          padding: '8px 12px',
+          borderTop: '1px solid #e9ecef',
+          marginTop: '8px'
+        }}>
+          <div style={{ 
+            fontSize: '10px', 
+            color: '#666', 
+            marginBottom: '6px',
+            fontWeight: 'bold'
+          }}>
+            Individual Kontaktor Controls:
+          </div>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px' }}>
+            {kontaktorKeys.map((kontaktorKey, index) => {
+              const kontaktorIsOn = areaStates[kontaktorKey];
+              const kontaktorNum = index + 1;
+              
+              return (
+                <button
+                  key={kontaktorKey}
+                  onClick={() => toggleKontaktor(kontaktorKey)}
+                  style={{
+                    backgroundColor: kontaktorIsOn ? '#4caf50' : '#f44336',
+                    color: 'white',
+                    border: 'none',
+                    padding: '4px 8px',
+                    borderRadius: '3px',
+                    cursor: 'pointer',
+                    fontSize: '9px',
+                    fontWeight: 'bold',
+                    minWidth: '35px',
+                    transition: 'all 0.2s ease',
+                    flex: '1',
+                    maxWidth: '70px'
+                  }}
+                >
+                  K{kontaktorNum}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      {/* Toggle grafik daya harian */}
+      <div style={{ marginTop: 8 }}>
+        <button
+          onClick={() => setShowPowerGraph(v => !v)}
+          style={{
+            background: '#1976d2',
+            color: 'white',
+            border: 'none',
+            borderRadius: '4px',
+            padding: '4px 10px',
+            fontSize: '11px',
+            fontWeight: 'bold',
+            cursor: 'pointer',
+            marginBottom: 4
+          }}
+        >
+          {showPowerGraph ? 'Sembunyikan Grafik Daya Harian' : 'Lihat Grafik Daya Harian'}
+        </button>
+        {/* Dropdown tahun dan bulan */}
+        <div style={{ margin: '8px 0 4px 0', display: 'flex', alignItems: 'center', gap: 8 }}>
+          <label style={{ fontSize: 12, fontWeight: 'bold', marginRight: 4 }}>Tahun:</label>
+          <select
+            value={selectedYear}
+            onChange={e => setSelectedYear(Number(e.target.value))}
+            style={{ fontSize: 12, padding: '2px 8px', borderRadius: 4 }}
+          >
+            {yearOptions.map(y => (
+              <option key={y} value={y}>{y}</option>
+            ))}
+          </select>
+          <label style={{ fontSize: 12, fontWeight: 'bold', marginLeft: 8, marginRight: 4 }}>Bulan:</label>
+          <select
+            value={selectedMonth}
+            onChange={e => setSelectedMonth(Number(e.target.value))}
+            style={{ fontSize: 12, padding: '2px 8px', borderRadius: 4 }}
+          >
+            {monthOptions.map(opt => (
+              <option key={opt.value} value={opt.value}>{opt.label}</option>
+            ))}
+          </select>
+        </div>
+        {showPowerGraph && (
+          <div style={{ marginTop: 8 }}>
+            {/* Placeholder grafik, ganti dengan Chart.js/Recharts sesuai data boxPanel.daily */}
+            <div style={{ height: 120, background: '#f5f5f5', borderRadius: 6, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#888', fontSize: 12 }}>
+              [Grafik Daya Harian]
+            </div>
+            <div style={{ marginTop: 8, fontSize: 12, fontWeight: 'bold', color: '#333' }}>
+              Total kWh bulan ini: {kwhBulanIni.toFixed(2)} kWh
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+
 import { authService } from './services/authService';
 import { monitoringService } from './services/monitoringService';
 import type { User } from './types/auth';
-import type { Area, AreaStates, ManualPositions } from './types/monitoring';
+import type { Area, AreaStates, ManualPositions, ShapeType } from './types/monitoring';
 // import type { Device } from './types/monitoring'; // Temporarily disabled
 
 function App() {
@@ -23,10 +226,16 @@ function App() {
   // State untuk edit mode dan manual positioning
   const [isEditMode, setIsEditMode] = useState(false);
   const [selectedArea, setSelectedArea] = useState<number | null>(null);
+  const [selectedKontaktor, setSelectedKontaktor] = useState<string | null>(null);
   const [isDragging, setIsDragging] = useState(false);
   const [isResizing, setIsResizing] = useState(false);
   const [resizeDirection, setResizeDirection] = useState<string>('');
   const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
+  const [isShapeEditing, setIsShapeEditing] = useState(false);
+  const [isResizeEditing, setIsResizeEditing] = useState(false);
+  const [clickTimer, setClickTimer] = useState<NodeJS.Timeout | null>(null);
+
+  const [controlMode, setControlMode] = useState<'move' | 'shape' | 'resize' | null>(null);
   
   // State untuk copy/paste ukuran`
   const [copiedSize, setCopiedSize] = useState<{ width: number; height: number } | null>(null);
@@ -48,20 +257,57 @@ function App() {
   const plant1Ref = useRef<HTMLDivElement>(null);
   const plant2Ref = useRef<HTMLDivElement>(null);
   
-  // State untuk kontrol ON/OFF setiap area - akan di-sync dengan Firebase
+  // State untuk kontrol ON/OFF setiap area dan sub-area kontaktor - akan di-sync dengan Firebase
   const [areaStates, setAreaStates] = useState<AreaStates>({
+    // Main Lane Controls
     'fp1-lane-b': false,        // Area 1 → Lane B (CHANGED: was fp1-lane-a)
     'fp1-lane-c': false,        // Area 2 → Lane C (CHANGED: was fp1-lane-b)
     'fp1-lane-d': false,        // Area 3 → Lane D (CHANGED: was fp1-lane-c)
     'fp1-lane-a': false,        // Area 4 → Lane A (CHANGED: was fp1-lane-d)
     'fp1-lane-melting-p2': false, // Area 5 → Lane Melting (Plant 2)
-    // fp1-area-6 dihapus
     'fp1-lane-ab-selatan': false, // Area 7 → Lane A B Selatan (CORRECTED: yang kotak biasa)
     'fp1-lane-cd-selatan': false,   // Area 8 → Lane C D Selatan (SWAPPED: was cd-utara)
     'fp1-lane-ab-utara': false,   // Area 9 → Lane A B Utara (CHANGED: was fp1-lane-cd-utara)
     'fp1-lane-cd-utara': false, // Area 10 → Lane C D Utara (SWAPPED: was cd-selatan)
-    'fp1-lane-melting-p1': false  // Area 11 → Lane Melting (Plant 1)
-    // fp1-area-12 dihapus
+    'fp1-lane-melting-p1': false,  // Area 11 → Lane Melting (Plant 1)
+    
+    // Sub-Area Kontaktor Controls
+    // Lane AB Selatan (2 Kontaktor)
+    'fp1-lane-ab-selatan-k1': false,
+    'fp1-lane-ab-selatan-k2': false,
+    
+    // Lane AB Utara (4 Kontaktor) 
+    'fp1-lane-ab-utara-k1': false,
+    'fp1-lane-ab-utara-k2': false,
+    'fp1-lane-ab-utara-k3': false,
+    'fp1-lane-ab-utara-k4': false,
+    
+    // Lane CD Selatan (2 Kontaktor)
+    'fp1-lane-cd-selatan-k1': false,
+    'fp1-lane-cd-selatan-k2': false,
+    
+    // Lane CD Utara (2 Kontaktor)
+    'fp1-lane-cd-utara-k1': false,
+    'fp1-lane-cd-utara-k2': false,
+    
+    // Lane D (3 Kontaktor)
+    'fp1-lane-d-k1': false,
+    'fp1-lane-d-k2': false,
+    'fp1-lane-d-k3': false,
+    
+    // Lane C (3 Kontaktor)
+    'fp1-lane-c-k1': false,
+    'fp1-lane-c-k2': false,
+    'fp1-lane-c-k3': false,
+    
+    // Lane A (3 Kontaktor)
+    'fp1-lane-a-k1': false,
+    'fp1-lane-a-k2': false,
+    'fp1-lane-a-k3': false,
+    
+    // Lane B (2 Kontaktor)
+    'fp1-lane-b-k1': false,
+    'fp1-lane-b-k2': false,
   });
 
   console.log('🏭 Area States initialized:', areaStates);
@@ -82,61 +328,241 @@ function App() {
       }
     }
     
-    // Built-in default layout (updated with new mapping)
-    console.log('📐 Using built-in default layout...');
-    return {
-      // Plant 2 lanes (remapped according to new order)
-      'fp1-lane-b': { top: 9.852877429603895, left: 37.63919821826282, width: 13.318485523385306, height: 80 },        // Area 1 → Lane B (was fp1-lane-a)
-      'fp1-lane-c': { top: 9.852877429603895, left: 51.67037861915388, width: 13.632516703786195, height: 62.15791388256016 }, // Area 2 → Lane C (was fp1-lane-b)
-      'fp1-lane-d': { top: 10.059560660280302, left: 65.9247761692603, width: 14.160356347438764, height: 80 },        // Area 3 → Lane D (was fp1-lane-c)
-      'fp1-lane-a': { top: 10.255035920356707, left: 23.385300668514448, width: 13.806236808078174, height: 61.32913502100383 }, // Area 4 → Lane A (was fp1-lane-d)
-      'fp1-lane-melting-p2': { top: 72.58956360912256, left: 51.67037861915367, width: 13.585746102440889, height: 27.23252945960823 },
-      
-      // Plant 1 lanes (remapped according to new order)
-      'fp1-lane-ab-selatan': { top: 47.65575409828823, left: 46.10244988864143, width: 37.63919821826806, height: 25.93920726961638 }, // Area 7 → Lane A B Selatan (kotak biasa)
-      'fp1-lane-cd-selatan': { top: 47.65575409828823, left: 15.812917594658788, width: 29.39866369710467, height: 43.83529066517651 },   // Area 8 → Lane C D Selatan (SWAPPED)
-      'fp1-lane-ab-utara': { top: 14.276618316364829, left: 45.8797327394204, width: 37.41648106904231, height: 32.77599619040059 },      // Area 9 → Lane A B Utara (was fp1-lane-cd-utara)
-      'fp1-lane-cd-utara': { 
-        top: 14.477697447581233, left: 15.590200445434299, width: 29.398663697104674, height: 32.77589988827418,                        // Area 10 → Lane C D Utara (SWAPPED)
-        customShape: 'T'
-      },
-      'fp1-lane-melting-p1': { top: 74.39927855007022, left: 35.63474387527836, width: 27.171492248997, height: 17.236332780071118 }
+    // Built-in default layout (updated with new mapping) - ONLY KONTAKTOR POSITIONS
+    console.log('📐 Using built-in default layout - Kontaktor positions only...');
+    
+
+
+    // Add melting areas (rendered as single areas, not kontaktors)
+    const meltingAreas = {
+      'fp1-lane-melting-p1': { top: 74.39927855007022, left: 35.63474387527836, width: 27.171492248997, height: 17.23633278007112, customShape: 'rectangle' as ShapeType },
+      'fp1-lane-melting-p2': { top: 71.78524984425695, left: 50.779510022271715, width: 15.144766146993312, height: 18.499280071909354, customShape: 'rectangle' as ShapeType }
     };
+
+    // Generate kontaktor positions AND melting area positions
+    const positions: any = {};
+    
+    // Add melting areas first (single areas, not kontaktors)
+    Object.entries(meltingAreas).forEach(([key, position]) => {
+      positions[key] = position;
+    });
+    
+
+
+    // Define specific kontaktor positions instead of auto-generation
+    const kontaktorPositions = {
+      // Lane A B Selatan kontaktors
+      'fp1-lane-ab-selatan-k1': {
+        top: 13.673380922715609,
+        left: 15.14476614699332,
+        width: 35.077951002229796,
+        height: 16.689567233661702
+      },
+      'fp1-lane-ab-selatan-k2': {
+        top: 29.960790551244497,
+        left: 15.697847973795936,
+        width: 34.632516703788816,
+        height: 17.49388375852733
+      },
+      
+      // Lane A B Utara kontaktors
+      'fp1-lane-ab-utara-k1': {
+        top: 13.874460053932017,
+        left: 49.88864142538922,
+        width: 34.07572383073497,
+        height: 12.265924806327176
+      },
+      'fp1-lane-ab-utara-k2': {
+        top: 25.738128795699968,
+        left: 49.88864142538922,
+        width: 34.29844097995545,
+        height: 11.461608281461555
+      },
+      'fp1-lane-ab-utara-k3': {
+        top: 36.998560143818715,
+        left: 49.88864142538922,
+        width: 34.075723830734965,
+        height: 10.054054362946708
+      },
+      'fp1-lane-ab-utara-k4': {
+        top: 46.851437573422594,
+        left: 50.11135857461024,
+        width: 33.85300668151448,
+        height: 11.05945001902874
+      },
+      
+      // Lane C D Selatan kontaktors
+      'fp1-lane-cd-selatan-k1': {
+        top: 47.253595835855414,
+        left: 15.701559020044542,
+        width: 34.74387527839643,
+        height: 14.477737507581232
+      },
+      'fp1-lane-cd-selatan-k2': {
+        top: 61.821781347063265,
+        left: 15.367483296213807,
+        width: 34.521158129175944,
+        height: 29.960830611244496,
+        customShape: 'T' as ShapeType,
+        cutoutWidth: 30,
+        cutoutHeight: 40,
+        stemWidth: 18.76391982182628,
+        headWidth: 98.66369710467706,
+        headHeight: 42.43992785500703
+      },
+      
+      // Lane C D Utara kontaktors
+      'fp1-lane-cd-utara-k1': {
+        top: 57.910789790324934,
+        left: 49.88864142538975,
+        width: 34.29844097995546,
+        height: 9.249641535954677,
+        customShape: 'rectangle' as ShapeType
+      },
+      'fp1-lane-cd-utara-k2': {
+        top: 66.75827156384679,
+        left: 49.66592427616927,
+        width: 34.521158129175944,
+        height: 6.434533698924993
+      },
+      
+      // Lane D kontaktors
+      'fp1-lane-d-k1': {
+        top: 9.657402397847491,
+        left: 65.47934187081931,
+        width: 15.187824795842616,
+        height: 30.13237545833131
+      },
+      'fp1-lane-d-k2': {
+        top: 39.417113817875574,
+        left: 65.74511766888911,
+        width: 14.519673348181147,
+        height: 27.719425883734438
+      },
+      'fp1-lane-d-k3': {
+        top: 66.76387566330679,
+        left: 65.56545916851792,
+        width: 14.519673348181147,
+        height: 23.295684996973506
+      },
+      
+      // Lane C kontaktors
+      'fp1-lane-c-k1': {
+        top: 9.852877429603895,
+        left: 51.44766146993339,
+        width: 14.121009651076466,
+        height: 20.735612851980516
+      },
+      'fp1-lane-c-k2': {
+        top: 30.161869682460896,
+        left: 51.53749072011899,
+        width: 14.566443949517446,
+        height: 21.942087639278956
+      },
+      'fp1-lane-c-k3': {
+        top: 52.07949498504916,
+        left: 51.40311871976788,
+        width: 14.566443949517447,
+        height: 20.534533720764113
+      },
+      
+      // Lane A kontaktors
+      'fp1-lane-a-k1': {
+        top: 10.255035920356708,
+        left: 22.939866370073467,
+        width: 14.624350650948108,
+        height: 21.91762530258825
+      },
+      'fp1-lane-a-k2': {
+        top: 31.569423600975743,
+        left: 22.85820296187709,
+        width: 14.624350650948108,
+        height: 19.906833990424186
+      },
+      'fp1-lane-a-k3': {
+        top: 51.47625759139994,
+        left: 23.23311038962451,
+        width: 14.401633501727616,
+        height: 20.107913121640593
+      },
+      
+      // Lane B kontaktors
+      'fp1-lane-b-k1': {
+        top: 9.852877429603895,
+        left: 37.63919821826282,
+        width: 13.786191536748332,
+        height: 45.414389430778165
+      },
+      'fp1-lane-b-k2': {
+        top: 55.29676108451165,
+        left: 37.61692650334077,
+        width: 13.786191536748332,
+        height: 34.55611634509224
+      }
+    };
+    
+    // Add all kontaktor positions to the final positions object
+    Object.entries(kontaktorPositions).forEach(([key, position]) => {
+      positions[key] = position;
+    });
+
+    console.log('📐 Final positions (kontaktors + melting):', positions);
+    return positions;
   };
 
   // State untuk posisi manual kotak - bisa diubah secara interaktif
   const [manualPositions, setManualPositions] = useState<ManualPositions>(() => {
-    console.log('🔧 Initializing manual positions...');
+    console.log('🔧 === INITIALIZING MANUAL POSITIONS ===');
+    console.log('🌐 Current URL:', window.location.href);
     
-    // Load from localStorage if available
-    const saved = localStorage.getItem('iot-plant-positions');
-    if (saved) {
+    // Debug: Check what's in localStorage
+    console.log('📊 localStorage content:');
+    console.log('- iot-plant-positions:', localStorage.getItem('iot-plant-positions') ? 'EXISTS' : 'NOT FOUND');
+    console.log('- iot-plant-default-positions:', localStorage.getItem('iot-plant-default-positions') ? 'EXISTS' : 'NOT FOUND');
+    
+    // Priority 1: Load saved default layout FIRST (after Save as Default)
+    const savedDefault = localStorage.getItem('iot-plant-default-positions');
+    if (savedDefault) {
       try {
-        const loadedPositions = JSON.parse(saved);
-        console.log('✅ Layout berhasil dimuat dari localStorage:', loadedPositions);
-        
-        // Check if loaded positions have new lane keys
-        const hasNewKeys = Object.keys(loadedPositions).some(key => key.includes('lane'));
-        if (!hasNewKeys) {
-          console.log('🔄 Old position keys detected, using default new positions');
-          localStorage.removeItem('iot-plant-positions'); // Clear old data
-          return getDefaultPositions();
-        }
-        
-        return loadedPositions;
+        const defaultPositions = JSON.parse(savedDefault);
+        console.log('🎯 PRIORITY 1: Loading from iot-plant-default-positions (SAVED DEFAULT)');
+        console.log('✅ USING SAVED DEFAULT POSITIONS');
+        return defaultPositions;
       } catch (e) {
-        console.warn('❌ Gagal memuat layout tersimpan, menggunakan default:', e);
+        console.warn('❌ Failed to load saved default positions:', e);
+        localStorage.removeItem('iot-plant-default-positions'); // Clear corrupted data
       }
     } else {
-      console.log('ℹ️ Tidak ada layout tersimpan, menggunakan posisi default');
+      console.log('ℹ️ PRIORITY 1: No saved default positions found');
     }
     
+    console.log('🎯 PRIORITY 2: Using kontaktor built-in defaults');
+    console.log('✅ USING BUILT-IN DEFAULT POSITIONS (kontaktorpositions)');
+    // Priority 2: Fall back to kontaktor defaults
     return getDefaultPositions();
   });
 
-  // Save positions to localStorage whenever they change
+  // Save positions to localStorage whenever they change (skip initial load)
+  const [isInitialLoad, setIsInitialLoad] = useState(true);
+  
   useEffect(() => {
+    if (isInitialLoad) {
+      setIsInitialLoad(false);
+      console.log('🔄 Initial load completed, skipping auto-save');
+      return; // Skip saving on initial load
+    }
+    
+    // Don't auto-save if user just saved as default (let default take priority)
+    // Check if user has saved default - if yes, DON'T auto-save to iot-plant-positions
+    const hasDefaultSaved = localStorage.getItem('iot-plant-default-positions');
+    if (hasDefaultSaved) {
+      console.log('� Skipping auto-save - user saved as default, preserving priority');
+      return;
+    }
+    
+    console.log('�💾 Auto-saving current positions to localStorage...');
     localStorage.setItem('iot-plant-positions', JSON.stringify(manualPositions));
+    console.log('✅ Auto-saved to iot-plant-positions');
     
     // Set save message but only show it briefly
     setSaveMessage('💾 Layout tersimpan otomatis');
@@ -154,7 +580,40 @@ function App() {
     localStorage.setItem('iot-t-foot-width', tFootWidth.toString());
   }, [tFootWidth]);
 
-  // Authentication state listener with timeout
+  // Debug: Check if kontaktor positions are available and force regeneration if needed
+  useEffect(() => {
+    console.log('🔧 Current manual positions:', manualPositions);
+    console.log('🌐 localStorage keys:', Object.keys(localStorage).filter(k => k.includes('iot-')));
+    
+    // Check for kontaktor positions
+    const kontaktorPositions = Object.keys(manualPositions).filter(key => key.includes('-k'));
+    const areaPositions = Object.keys(manualPositions).filter(key => !key.includes('-k'));
+    console.log('📍 Available kontaktor positions:', kontaktorPositions);
+    console.log('🏭 Available area positions:', areaPositions);
+    
+    // Check for old main lane positions that should be removed
+    const mainLanePositions = Object.keys(manualPositions).filter(key => 
+      key.includes('fp1-lane-') && !key.includes('-k')
+    );
+    
+    if (kontaktorPositions.length === 0 || mainLanePositions.length > 0) {
+      console.warn('⚠️ Detected old layout or missing kontaktors! Regenerating positions...');
+      
+      // Check if user has saved default - if yes, DON'T delete it, just regenerate current
+      const hasSavedDefault = localStorage.getItem('iot-plant-default-positions');
+      if (hasSavedDefault) {
+        console.log('🛡️ Preserving user saved default, only clearing current positions');
+        localStorage.removeItem('iot-plant-positions');
+        // DON'T delete iot-plant-default-positions - keep user's saved layout!
+      } else {
+        console.log('🧹 No saved default found, clearing all positions');
+        localStorage.removeItem('iot-plant-positions');
+        localStorage.removeItem('iot-plant-default-positions');
+      }
+      
+      setManualPositions(getDefaultPositions());
+    }
+  }, []);  // Authentication state listener with timeout
   useEffect(() => {
     console.log('🔐 Setting up Firebase auth listener...');
     const timeoutId = setTimeout(() => {
@@ -445,13 +904,197 @@ function App() {
     return nameMapping[areaNum] || `Area ${areaNum}`;
   };
 
+  // Helper function to get kontaktor configuration per lane
+  const getLaneKontaktorConfig = (areaKey: string) => {
+    const kontaktorConfig: { [key: string]: { count: number; names: string[] } } = {
+      'fp1-lane-ab-selatan': { 
+        count: 2, 
+        names: ['Kontaktor 1', 'Kontaktor 2'] 
+      },
+      'fp1-lane-ab-utara': { 
+        count: 4, 
+        names: ['Kontaktor 1', 'Kontaktor 2', 'Kontaktor 3', 'Kontaktor 4'] 
+      },
+      'fp1-lane-cd-selatan': { 
+        count: 2, 
+        names: ['Kontaktor 1', 'Kontaktor 2'] 
+      },
+      'fp1-lane-cd-utara': { 
+        count: 2, 
+        names: ['Kontaktor 1', 'Kontaktor 2'] 
+      },
+      'fp1-lane-d': { 
+        count: 3, 
+        names: ['Kontaktor 1', 'Kontaktor 2', 'Kontaktor 3'] 
+      },
+      'fp1-lane-c': { 
+        count: 3, 
+        names: ['Kontaktor 1', 'Kontaktor 2', 'Kontaktor 3'] 
+      },
+      'fp1-lane-a': { 
+        count: 3, 
+        names: ['Kontaktor 1', 'Kontaktor 2', 'Kontaktor 3'] 
+      },
+      'fp1-lane-b': { 
+        count: 2, 
+        names: ['Kontaktor 1', 'Kontaktor 2'] 
+      },
+    };
+    
+    return kontaktorConfig[areaKey] || { count: 0, names: [] };
+  };
+
+  // Helper function to get sub-area keys for kontaktor
+  const getKontaktorKeys = (areaKey: string): string[] => {
+    const config = getLaneKontaktorConfig(areaKey);
+    const keys: string[] = [];
+    
+    for (let i = 1; i <= config.count; i++) {
+      keys.push(`${areaKey}-k${i}`);
+    }
+    
+    return keys;
+  };
+
+  // Toggle individual kontaktor
+  const toggleKontaktor = async (kontaktorKey: string) => {
+    if (isEditMode) return;
+
+    const currentStatus = areaStates[kontaktorKey];
+    const newStatus = !currentStatus;
+
+    try {
+      console.log(`🔄 Toggling kontaktor: ${kontaktorKey}`);
+      console.log(`📊 Kontaktor ${kontaktorKey}: ${currentStatus ? 'ON' : 'OFF'} → ${newStatus ? 'ON' : 'OFF'}`);
+      
+      // Update local state immediately for responsive UI
+      setAreaStates(prev => ({
+        ...prev,
+        [kontaktorKey]: newStatus
+      }));
+      
+      // Update Firebase
+      await monitoringService.updateAreaStatus(kontaktorKey, newStatus ? 'ON' : 'OFF');
+      
+      // Update main lane status based on individual kontaktors
+      const laneKey = kontaktorKey.split('-k')[0];
+      const kontaktorKeys = getKontaktorKeys(laneKey);
+      const anyKontaktorOn = kontaktorKeys.some(key => 
+        key === kontaktorKey ? newStatus : areaStates[key]
+      );
+      
+      // Update main lane status
+      setAreaStates(prev => ({
+        ...prev,
+        [laneKey]: anyKontaktorOn
+      }));
+      
+      await monitoringService.updateAreaStatus(laneKey, anyKontaktorOn ? 'ON' : 'OFF');
+      
+      console.log(`✅ Kontaktor ${kontaktorKey} updated successfully`);
+      
+    } catch (error) {
+      console.error('❌ Failed to toggle kontaktor:', error);
+      
+      // Revert state if Firebase update fails
+      setAreaStates(prev => ({
+        ...prev,
+        [kontaktorKey]: currentStatus
+      }));
+    }
+  };
+
+  // Toggle main lane control (controls all kontaktors in lane)
+  const toggleMainLane = async (laneKey: string) => {
+    if (isEditMode) return;
+
+    console.log(`🚨🚨🚨 MAIN CONTROL BUTTON DITEKAN UNTUK ${laneKey}! 🚨🚨🚨`);
+
+    const kontaktorKeys = getKontaktorKeys(laneKey);
+    if (kontaktorKeys.length === 0) {
+      // Fallback to original toggle for lanes without kontaktors
+      console.log(`🔄 Main lane ${laneKey} has no kontaktors, using toggleArea`);
+      return toggleArea(laneKey);
+    }
+
+    const currentMainStatus = areaStates[laneKey];
+    const newMainStatus = !currentMainStatus;
+
+    try {
+      console.log(`🎯 MAIN CONTROL ACTIVATED for ${laneKey}!`);
+      console.log(`🔄 Toggling main lane: ${laneKey} with ${kontaktorKeys.length} kontaktors`);
+      console.log(`📊 Main Lane ${laneKey}: ${currentMainStatus ? 'ON' : 'OFF'} → ${newMainStatus ? 'ON' : 'OFF'}`);
+      console.log(`🎛️ Kontaktors to be affected: ${kontaktorKeys.join(', ')}`);
+      
+      // Update all kontaktors in the lane
+      const newStates: { [key: string]: boolean } = {};
+      newStates[laneKey] = newMainStatus;
+      
+      kontaktorKeys.forEach(kontaktorKey => {
+        newStates[kontaktorKey] = newMainStatus;
+        console.log(`🔧 Setting kontaktor ${kontaktorKey} to ${newMainStatus ? 'ON' : 'OFF'}`);
+      });
+      
+      // Update local state immediately for responsive UI
+      console.log(`📊 Before state update - current areaStates for ${laneKey}:`, areaStates[laneKey]);
+      kontaktorKeys.forEach(key => {
+        console.log(`📊 Before state update - kontaktor ${key}:`, areaStates[key]);
+      });
+      console.log(`📊 New states to be applied:`, newStates);
+      
+      setAreaStates(prev => {
+        const newState = {
+          ...prev,
+          ...newStates
+        };
+        console.log(`📊 After state update - new areaStates:`, newState);
+        return newState;
+      });
+      
+      // Update Firebase for main lane
+      await monitoringService.updateAreaStatus(laneKey, newMainStatus ? 'ON' : 'OFF');
+      
+      // Update Firebase for all kontaktors
+      for (const kontaktorKey of kontaktorKeys) {
+        await monitoringService.updateAreaStatus(kontaktorKey, newMainStatus ? 'ON' : 'OFF');
+      }
+      
+      console.log(`✅ Main lane ${laneKey} and all kontaktors updated successfully`);
+      
+    } catch (error) {
+      console.error('❌ Failed to toggle main lane:', error);
+      
+      // Revert state if Firebase update fails
+      setAreaStates(prev => ({
+        ...prev,
+        [laneKey]: currentMainStatus
+      }));
+    }
+  };
+
+
+
   // Function to save current layout as default
   const saveAsDefaultLayout = () => {
     try {
+      console.log('🌟 SAVE AS DEFAULT - Current positions:', manualPositions);
+      
+      // Save current layout as the new default
       localStorage.setItem('iot-plant-default-positions', JSON.stringify(manualPositions));
-      setSaveMessage('✅ Layout saved as default!');
+      console.log('✅ Saved to iot-plant-default-positions');
+      
+      // CLEAR current positions so default takes priority on refresh
+      localStorage.removeItem('iot-plant-positions');
+      console.log('🗑️ Cleared iot-plant-positions to prioritize default');
+      
+      // Layout saved as default
+      
+      console.log('📊 localStorage after save as default:');
+      console.log('- iot-plant-positions:', localStorage.getItem('iot-plant-positions') ? 'EXISTS' : 'CLEARED ✅');
+      console.log('- iot-plant-default-positions:', localStorage.getItem('iot-plant-default-positions') ? 'EXISTS ✅' : 'NOT FOUND');
+      
+      setSaveMessage('✅ Layout saved as default! Will persist on refresh.');
       setTimeout(() => setSaveMessage(''), 2000);
-      console.log('✅ Layout saved as default:', manualPositions);
     } catch (error) {
       console.error('❌ Failed to save layout as default:', error);
       setSaveMessage('❌ Failed to save as default');
@@ -459,27 +1102,73 @@ function App() {
     }
   };
 
-  // Function to reset to default layout
+
+
+  // Function to reset to default layout (same as loadDefaultLayout but different message)
   const resetToDefaultLayout = () => {
     try {
       const savedDefault = localStorage.getItem('iot-plant-default-positions');
       if (savedDefault) {
         const defaultPositions = JSON.parse(savedDefault);
         setManualPositions(defaultPositions);
+        // Clear current edits when resetting to default
+        localStorage.removeItem('iot-plant-positions');
+        setIsEditMode(false);
         setSaveMessage('✅ Layout reset to saved default!');
         setTimeout(() => setSaveMessage(''), 2000);
-        console.log('✅ Layout reset to saved default:', defaultPositions);
+        console.log('✅ Layout reset to saved default and cleared current edits:', defaultPositions);
       } else {
         // Fall back to built-in default
         const builtInDefault = getDefaultPositions();
         setManualPositions(builtInDefault);
+        // Clear current edits when resetting to default
+        localStorage.removeItem('iot-plant-positions');
+        setIsEditMode(false);
         setSaveMessage('✅ Layout reset to built-in default!');
         setTimeout(() => setSaveMessage(''), 2000);
-        console.log('✅ Layout reset to built-in default:', builtInDefault);
+        console.log('✅ Layout reset to built-in default and cleared current edits:', builtInDefault);
       }
     } catch (error) {
       console.error('❌ Failed to reset layout:', error);
       setSaveMessage('❌ Failed to reset layout');
+      setTimeout(() => setSaveMessage(''), 2000);
+    }
+  };
+
+  // Function to clear all saved layouts and reset to built-in default
+  const clearAllLayouts = () => {
+    try {
+      // Clear ALL localStorage data related to layout
+      localStorage.removeItem('iot-plant-positions');
+      localStorage.removeItem('iot-plant-default-positions');
+      localStorage.removeItem('iot-t-foot-width');
+      
+      // Clear any old localStorage keys that might conflict
+      Object.keys(localStorage).forEach(key => {
+        if (key.startsWith('iot-') || key.startsWith('plant-') || key.startsWith('layout-')) {
+          localStorage.removeItem(key);
+        }
+      });
+      
+      const builtInDefault = getDefaultPositions();
+      setManualPositions(builtInDefault);
+      setIsEditMode(false);
+      
+      // Reset T-foot width to default
+      setTFootWidth(580);
+      
+      setSaveMessage('✅ All layouts cleared & regenerated! Positions synchronized.');
+      setTimeout(() => setSaveMessage(''), 3000);
+      console.log('✅ All layouts cleared and reset to built-in default:', builtInDefault);
+      
+      // Force page reload to ensure clean state
+      setTimeout(() => {
+        window.location.reload();
+      }, 1500);
+      
+    } catch (error) {
+      console.error('❌ Failed to clear all layouts:', error);
+      setSaveMessage('❌ Failed to clear layouts');
       setTimeout(() => setSaveMessage(''), 2000);
     }
   };
@@ -686,8 +1375,8 @@ function App() {
         ...prev,
         [areaKey]: {
           ...prev[areaKey],
-          left: Math.max(0, Math.min(90, newLeft)),
-          top: Math.max(0, Math.min(90, newTop))
+          left: Math.max(0, Math.min(97, newLeft)),
+          top: Math.max(0, Math.min(97, newTop))
         }
       }));
     } else if (isResizing) {
@@ -700,23 +1389,23 @@ function App() {
       
       // Handle different resize directions
       if (resizeDirection.includes('right')) {
-        newPos.width = Math.max(5, Math.min(80, relativeX - currentPos.left));
+        newPos.width = Math.max(3, Math.min(95, relativeX - currentPos.left));
       }
       if (resizeDirection.includes('left')) {
         const newWidth = currentPos.width + (currentPos.left - relativeX);
-        if (newWidth >= 5 && relativeX >= 0) {
+        if (newWidth >= 3 && relativeX >= 0) {
           newPos.left = relativeX;
-          newPos.width = Math.min(80, newWidth);
+          newPos.width = Math.min(95, newWidth);
         }
       }
       if (resizeDirection.includes('bottom')) {
-        newPos.height = Math.max(5, Math.min(80, relativeY - currentPos.top));
+        newPos.height = Math.max(3, Math.min(95, relativeY - currentPos.top));
       }
       if (resizeDirection.includes('top')) {
         const newHeight = currentPos.height + (currentPos.top - relativeY);
-        if (newHeight >= 5 && relativeY >= 0) {
+        if (newHeight >= 3 && relativeY >= 0) {
           newPos.top = relativeY;
-          newPos.height = Math.min(80, newHeight);
+          newPos.height = Math.min(95, newHeight);
         }
       }
       
@@ -736,8 +1425,21 @@ function App() {
 
   // Toggle edit mode
   const toggleEditMode = () => {
+    // Entering edit mode
+    if (!isEditMode) {
+      console.log('🎯 Entering edit mode - auto-save enabled again');
+    }
+    
     setIsEditMode(!isEditMode);
     setSelectedArea(null);
+    setSelectedKontaktor(null);
+    setIsShapeEditing(false);
+    setIsResizeEditing(false);
+    setControlMode(null);
+    if (clickTimer) {
+      clearTimeout(clickTimer);
+      setClickTimer(null);
+    }
     setIsDragging(false);
     setIsResizing(false);
   };
@@ -761,35 +1463,18 @@ function App() {
     }
   };
 
-  // Reset positions to default
-  const resetPositions = () => {
-    if (confirm('Reset all area positions to default? This cannot be undone.')) {
-      const defaultPositions: ManualPositions = {
-        'fp1-area-1': { top: 20, left: 30, width: 12, height: 8 },
-        'fp1-area-2': { top: 20, left: 43, width: 12, height: 8 },
-        'fp1-area-3': { top: 20, left: 56, width: 12, height: 8 },
-        'fp1-area-4': { top: 65, left: 20, width: 12, height: 12 },
-        'fp1-area-5': { top: 65, left: 33, width: 12, height: 12 },
-        'fp1-area-6': { top: 65, left: 46, width: 12, height: 12 },
-        'fp1-area-7': { top: 25, left: 53, width: 12, height: 8 },
-        'fp1-area-8': { top: 35, left: 53, width: 12, height: 8 },
-        'fp1-area-9': { top: 45, left: 53, width: 12, height: 8 },
-        'fp1-area-10': { top: 70, left: 45, width: 12, height: 8 },
-        'fp1-area-11': { top: 70, left: 58, width: 12, height: 8 },
-        'fp1-area-12': { top: 70, left: 71, width: 12, height: 8 }
-      };
-      setManualPositions(defaultPositions);
-      setSelectedArea(null);
-    }
-  };
+
 
   // Helper function to get area details - Updated for new lane system
   const getAreaDetails = (areaNum: number) => {
     const areaKey = getAreaKey(areaNum);
     const area = areas[areaKey];
-    const isOn = area ? area.status === 'ON' : areaStates[areaKey] || false;
     
-    console.log(`🔍 getAreaDetails(${areaNum}): areaKey=${areaKey}, area=${area ? 'exists' : 'null'}, isOn=${isOn}`);
+    // PERBAIKAN: Gunakan areaStates sebagai sumber utama untuk konsistensi UI
+    // areaStates selalu terupdate langsung dari toggleMainLane dan toggleArea
+    const isOn = areaStates[areaKey] || false;
+    
+    console.log(`🔍 getAreaDetails(${areaNum}): areaKey=${areaKey}, area=${area ? 'exists' : 'null'}, isOn=${isOn} (from areaStates)`);
     
     let plant = '';
     let zone = '';
@@ -814,14 +1499,1305 @@ function App() {
     return { areaKey, isOn, plant, zone, area };
   };
 
-  // Enhanced function to render area box with full editing capabilities
-  const renderAreaBox = (areaNum: number) => {
+  // Handle kontaktor resize with different cursors
+  const handleKontaktorResize = (e: React.MouseEvent, kontaktorKey: string, position: any, direction: string) => {
+    e.stopPropagation();
+    
+    const container = e.currentTarget.parentElement!.parentElement!.getBoundingClientRect();
+    const startMouseX = e.clientX;
+    const startMouseY = e.clientY;
+    const startWidth = position.width;
+    const startHeight = position.height;
+    const startLeft = position.left;
+    const startTop = position.top;
+    
+    const handleResize = (resizeE: MouseEvent) => {
+      const deltaX = resizeE.clientX - startMouseX;
+      const deltaY = resizeE.clientY - startMouseY;
+      
+      const deltaXPercent = (deltaX / container.width) * 100;
+      const deltaYPercent = (deltaY / container.height) * 100;
+      
+      let newWidth = startWidth;
+      let newHeight = startHeight;
+      let newLeft = startLeft;
+      let newTop = startTop;
+      
+      // Handle different resize directions
+      switch (direction) {
+        case 'se-resize': // Bottom-right
+          newWidth = startWidth + deltaXPercent;
+          newHeight = startHeight + deltaYPercent;
+          break;
+        case 'sw-resize': // Bottom-left
+          newWidth = startWidth - deltaXPercent;
+          newHeight = startHeight + deltaYPercent;
+          newLeft = startLeft + deltaXPercent;
+          break;
+        case 'ne-resize': // Top-right
+          newWidth = startWidth + deltaXPercent;
+          newHeight = startHeight - deltaYPercent;
+          newTop = startTop + deltaYPercent;
+          break;
+        case 'nw-resize': // Top-left
+          newWidth = startWidth - deltaXPercent;
+          newHeight = startHeight - deltaYPercent;
+          newLeft = startLeft + deltaXPercent;
+          newTop = startTop + deltaYPercent;
+          break;
+        case 'e-resize': // Right
+          newWidth = startWidth + deltaXPercent;
+          break;
+        case 'w-resize': // Left
+          newWidth = startWidth - deltaXPercent;
+          newLeft = startLeft + deltaXPercent;
+          break;
+        case 'n-resize': // Top
+          newHeight = startHeight - deltaYPercent;
+          newTop = startTop + deltaYPercent;
+          break;
+        case 's-resize': // Bottom
+          newHeight = startHeight + deltaYPercent;
+          break;
+      }
+      
+      // Clamp values dengan batas yang lebih fleksibel
+      const clampedWidth = Math.max(3, Math.min(50, newWidth));
+      const clampedHeight = Math.max(2, Math.min(60, newHeight));
+      const clampedLeft = Math.max(0, Math.min(95 - clampedWidth, newLeft));
+      const clampedTop = Math.max(0, Math.min(95 - clampedHeight, newTop));
+      
+      setManualPositions(prev => ({
+        ...prev,
+        [kontaktorKey]: {
+          ...prev[kontaktorKey],
+          width: clampedWidth,
+          height: clampedHeight,
+          left: clampedLeft,
+          top: clampedTop
+        }
+      }));
+      
+      // Debug log untuk T-shape
+      if (manualPositions[kontaktorKey]?.customShape === 'T') {
+        console.log(`🔧 T-shape ${kontaktorKey} resized:`, { width: clampedWidth, height: clampedHeight, left: clampedLeft, top: clampedTop });
+      }
+    };
+    
+    const stopResize = () => {
+      document.removeEventListener('mousemove', handleResize);
+      document.removeEventListener('mouseup', stopResize);
+    };
+    
+    document.addEventListener('mousemove', handleResize);
+    document.addEventListener('mouseup', stopResize);
+  };
+
+  // Function to handle T-shape specific resize
+  const handleTShapeResize = (e: React.MouseEvent, kontaktorKey: string, position: any, resizeType: string) => {
+    e.stopPropagation();
+    
+    const container = e.currentTarget.parentElement!.parentElement!.getBoundingClientRect();
+    const startMouseX = e.clientX;
+    const startMouseY = e.clientY;
+    
+    // Get current T-shape parameters
+    const startStemWidth = position.stemWidth || 25;
+    const startHeadWidth = position.headWidth || 100;
+    const startHeadHeight = position.headHeight || 35;
+    
+    const handleTResize = (resizeE: MouseEvent) => {
+      const deltaX = resizeE.clientX - startMouseX;
+      const deltaY = resizeE.clientY - startMouseY;
+      
+      const deltaXPercent = (deltaX / container.width) * 100;
+      const deltaYPercent = (deltaY / container.height) * 100;
+      
+      let newStemWidth = startStemWidth;
+      let newHeadWidth = startHeadWidth;
+      let newHeadHeight = startHeadHeight;
+      
+      // Handle different T-shape resize types
+      switch (resizeType) {
+        case 'stem-width-left':
+        case 'stem-width-right':
+          // Adjust stem width based on horizontal movement
+          newStemWidth = resizeType === 'stem-width-right' 
+            ? Math.max(10, Math.min(60, startStemWidth + deltaXPercent * 2))
+            : Math.max(10, Math.min(60, startStemWidth - deltaXPercent * 2));
+          break;
+          
+        case 'head-width-left':
+        case 'head-width-right':
+          // Adjust head width based on horizontal movement
+          newHeadWidth = resizeType === 'head-width-right' 
+            ? Math.max(60, Math.min(100, startHeadWidth + deltaXPercent * 2))
+            : Math.max(60, Math.min(100, startHeadWidth - deltaXPercent * 2));
+          break;
+          
+        case 'head-height':
+          // Adjust head height based on vertical movement
+          newHeadHeight = Math.max(20, Math.min(80, startHeadHeight + deltaYPercent));
+          break;
+      }
+      
+      setManualPositions(prev => ({
+        ...prev,
+        [kontaktorKey]: {
+          ...prev[kontaktorKey],
+          stemWidth: newStemWidth,
+          headWidth: newHeadWidth,
+          headHeight: newHeadHeight
+        }
+      }));
+      
+      console.log(`🎨 T-shape ${kontaktorKey} ${resizeType}:`, { 
+        stemWidth: newStemWidth, 
+        headWidth: newHeadWidth, 
+        headHeight: newHeadHeight 
+      });
+    };
+    
+    const stopTResize = () => {
+      document.removeEventListener('mousemove', handleTResize);
+      document.removeEventListener('mouseup', stopTResize);
+    };
+    
+    document.addEventListener('mousemove', handleTResize);
+    document.addEventListener('mouseup', stopTResize);
+  };
+
+  // Function to handle melting area T-shape specific resize
+  const handleMeltingTShapeResize = (e: React.MouseEvent, areaNum: number, position: any, resizeType: string) => {
+    e.stopPropagation();
+    
+    const container = e.currentTarget.parentElement!.parentElement!.getBoundingClientRect();
+    const startMouseX = e.clientX;
+    const startMouseY = e.clientY;
+    
+    // Get current T-shape parameters
+    const startStemWidth = position.stemWidth || 25;
+    const startHeadWidth = position.headWidth || 100;
+    const startHeadHeight = position.headHeight || 35;
+    
+    const handleMeltingTResize = (resizeE: MouseEvent) => {
+      const deltaX = resizeE.clientX - startMouseX;
+      const deltaY = resizeE.clientY - startMouseY;
+      
+      const deltaXPercent = (deltaX / container.width) * 100;
+      const deltaYPercent = (deltaY / container.height) * 100;
+      
+      let newStemWidth = startStemWidth;
+      let newHeadWidth = startHeadWidth;
+      let newHeadHeight = startHeadHeight;
+      
+      // Handle different T-shape resize types
+      switch (resizeType) {
+        case 'stem-width-left':
+        case 'stem-width-right':
+          // Adjust stem width based on horizontal movement
+          newStemWidth = resizeType === 'stem-width-right' 
+            ? Math.max(10, Math.min(60, startStemWidth + deltaXPercent * 2))
+            : Math.max(10, Math.min(60, startStemWidth - deltaXPercent * 2));
+          break;
+          
+        case 'head-width-left':
+        case 'head-width-right':
+          // Adjust head width based on horizontal movement
+          newHeadWidth = resizeType === 'head-width-right' 
+            ? Math.max(60, Math.min(100, startHeadWidth + deltaXPercent * 2))
+            : Math.max(60, Math.min(100, startHeadWidth - deltaXPercent * 2));
+          break;
+          
+        case 'head-height':
+          // Adjust head height based on vertical movement
+          newHeadHeight = Math.max(20, Math.min(80, startHeadHeight + deltaYPercent));
+          break;
+      }
+      
+      const { areaKey } = getAreaDetails(areaNum);
+      setManualPositions(prev => ({
+        ...prev,
+        [areaKey]: {
+          ...prev[areaKey],
+          stemWidth: newStemWidth,
+          headWidth: newHeadWidth,
+          headHeight: newHeadHeight
+        }
+      }));
+      
+      console.log(`🎨 Melting T-shape ${areaKey} ${resizeType}:`, { 
+        stemWidth: newStemWidth, 
+        headWidth: newHeadWidth, 
+        headHeight: newHeadHeight 
+      });
+    };
+    
+    const stopMeltingTResize = () => {
+      document.removeEventListener('mousemove', handleMeltingTResize);
+      document.removeEventListener('mouseup', stopMeltingTResize);
+    };
+    
+    document.addEventListener('mousemove', handleMeltingTResize);
+    document.addEventListener('mouseup', stopMeltingTResize);
+  };
+
+  // Function to render kontaktor boxes (replaces main lane areas)
+  const renderKontaktorBoxes = (areaKey: string) => {
+    const kontaktorKeys = getKontaktorKeys(areaKey);
+    if (kontaktorKeys.length === 0) return null;
+
+
+    
+    console.log(`🔧 Rendering kontaktor boxes for ${areaKey}, keys:`, kontaktorKeys);
+
+    return kontaktorKeys.map((kontaktorKey, index) => {
+      const position = manualPositions[kontaktorKey];
+      if (!position) {
+        console.warn(`❌ No position found for kontaktor: ${kontaktorKey}`);
+        return null;
+      }
+
+      const isOn = areaStates[kontaktorKey];
+      const kontaktorNum = index + 1;
+      const laneName = getAreaName(getAreaNumFromKey(areaKey));
+      const isSelected = selectedKontaktor === kontaktorKey;
+
+      console.log(`📍 Kontaktor ${kontaktorKey} position:`, position, `isOn: ${isOn}, customShape: ${position.customShape}`);
+
+      const boxStyle: React.CSSProperties = {
+        position: 'absolute',
+        top: `${position.top}%`,
+        left: `${position.left}%`,
+        width: `${position.width}%`,
+        height: `${position.height}%`,
+        backgroundColor: 'transparent', // Background akan di background div terpisah
+        border: position.customShape === 'T' || position.customShape === 'L' 
+          ? 'none' // Remove border for T/L shapes, will be handled by border overlay
+          : (isEditMode
+              ? (isSelected ? '3px solid #0057e4' : '2px dashed #ff9800')
+              : (isOn ? '2px solid #4caf50' : '2px solid #d32f2f')),
+        borderRadius: '6px',
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+        justifyContent: 'center',
+        fontSize: '9px',
+        fontWeight: 'bold',
+        color: '#fff',
+        textShadow: '1px 1px 2px rgba(0,0,0,0.8)',
+        cursor: isEditMode ? (isSelected ? 'move' : 'pointer') : 'pointer',
+        transition: isEditMode ? 'none' : 'all 0.3s ease',
+        userSelect: 'none',
+        zIndex: isSelected ? 1000 : (isEditMode ? 100 : 1),
+        outline: isEditMode && isSelected ? '2px solid #ffeb3b' : 'none',
+        outlineOffset: '2px',
+        boxSizing: 'border-box',
+        // Jangan apply clip-path di container utama kontaktor
+      };
+
+      return (
+        <div
+          key={kontaktorKey}
+          style={boxStyle}
+          onClick={(e) => {
+            e.stopPropagation();
+            if (isEditMode) {
+              // Single click to select and show control panel - keep selected
+              console.log(`🎯 Kontaktor ${kontaktorKey} clicked! CustomShape: ${position.customShape}`);
+              setSelectedKontaktor(kontaktorKey);
+              setControlMode(null); // Reset control mode to show main panel
+              setIsShapeEditing(false);
+              setIsResizeEditing(false);
+              console.log(`📊 Control state: selectedKontaktor=${kontaktorKey}, controlMode=null`);
+            } else {
+              toggleKontaktor(kontaktorKey);
+            }
+          }}
+          onMouseDown={(e) => {
+            if (isEditMode && e.button === 0) {
+              e.stopPropagation();
+              setSelectedKontaktor(kontaktorKey);
+              
+              const rect = e.currentTarget.getBoundingClientRect();
+              const container = e.currentTarget.parentElement!.getBoundingClientRect();
+              
+              const offsetX = e.clientX - rect.left;
+              const offsetY = e.clientY - rect.top;
+              
+              const handleMouseMove = (moveE: MouseEvent) => {
+                const newLeft = ((moveE.clientX - container.left - offsetX) / container.width) * 100;
+                const newTop = ((moveE.clientY - container.top - offsetY) / container.height) * 100;
+                
+                const clampedLeft = Math.max(0, Math.min(95, newLeft));
+                const clampedTop = Math.max(0, Math.min(95, newTop));
+                
+                setManualPositions(prev => ({
+                  ...prev,
+                  [kontaktorKey]: {
+                    ...prev[kontaktorKey],
+                    left: clampedLeft,
+                    top: clampedTop
+                  }
+                }));
+              };
+              
+              const handleMouseUp = () => {
+                document.removeEventListener('mousemove', handleMouseMove);
+                document.removeEventListener('mouseup', handleMouseUp);
+              };
+              
+              document.addEventListener('mousemove', handleMouseMove);
+              document.addEventListener('mouseup', handleMouseUp);
+            }
+          }}
+          onMouseEnter={(e) => {
+            if (!isEditMode) {
+              e.currentTarget.style.transform = 'scale(1.05)';
+            }
+          }}
+          onMouseLeave={(e) => {
+            if (!isEditMode) {
+              e.currentTarget.style.transform = 'scale(1)';
+            }
+          }}
+        >
+          {/* Background div dengan clip-path untuk kontaktor shape */}
+          <div
+            style={{
+              position: 'absolute',
+              top: 0,
+              left: 0,
+              width: '100%',
+              height: '100%',
+              backgroundColor: isEditMode 
+                ? (isSelected ? 'rgba(0,87,228,0.9)' : 'rgba(255,193,7,0.7)')
+                : (isOn ? 'rgba(76,175,80,0.8)' : 'rgba(244,67,54,0.8)'),
+              zIndex: 0,
+              ...getShapeStyles(position.customShape, position), // Apply clip-path hanya di sini
+            }}
+          />
+          
+          {/* Border overlay untuk T dan L shapes */}
+          {(position.customShape === 'T' || position.customShape === 'L') && (
+            <div
+              style={{
+                position: 'absolute',
+                top: 0,
+                left: 0,
+                width: '100%',
+                height: '100%',
+                backgroundColor: 'transparent',
+                border: isEditMode
+                  ? (isSelected ? '3px solid #0057e4' : '2px dashed #ff9800')
+                  : (isOn ? '2px solid #4caf50' : '2px solid #d32f2f'),
+                zIndex: 1,
+                pointerEvents: 'none',
+                ...getShapeStyles(position.customShape, position), // Apply same clip-path untuk border
+              }}
+            />
+          )}
+          
+          <div style={{ textAlign: 'center', pointerEvents: 'none', position: 'relative', zIndex: 2 }}>
+            <div style={{ fontSize: '8px', marginBottom: '2px' }}>
+              {laneName}
+            </div>
+            <div style={{ fontSize: '10px', fontWeight: 'bold' }}>
+              K{kontaktorNum}
+            </div>
+            {!isEditMode && (
+              <div style={{ fontSize: '7px', marginTop: '2px' }}>
+                {isOn ? '✅ ON' : '❌ OFF'}
+              </div>
+            )}
+            {isEditMode && isSelected && (
+              <div style={{ fontSize: '6px', marginTop: '2px', color: '#ff9800' }}>
+                {isShapeEditing ? '🎨 Shape Edit' :
+                 isResizeEditing ? '� Manual Resize' :
+                 '✅ Selected'}
+              </div>
+            )}
+            {isEditMode && !isSelected && (
+              <div style={{ fontSize: '5px', marginTop: '2px', color: '#ffeb3b' }}>
+                Click to Select
+              </div>
+            )}
+          </div>
+          
+          {/* Invisible overlay for L and T shaped kontaktors to capture clicks */}
+          {(position.customShape === 'L' || position.customShape === 'T') && (
+            <div
+              style={{
+                position: 'absolute',
+                top: 0,
+                left: 0,
+                width: '100%',
+                height: '100%',
+                backgroundColor: 'transparent',
+                background: 'none',
+                border: 'none',
+                zIndex: 1,
+                cursor: 'inherit',
+                pointerEvents: 'auto'
+              }}
+              onClick={(e) => {
+                e.stopPropagation();
+                if (isEditMode) {
+                  console.log(`🎯 T/L-shape kontaktor ${kontaktorKey} clicked via overlay! CustomShape: ${position.customShape}`);
+                  setSelectedKontaktor(kontaktorKey);
+                  setControlMode(null);
+                  setIsShapeEditing(false);
+                  setIsResizeEditing(false);
+                  console.log(`📊 Control state: selectedKontaktor=${kontaktorKey}, controlMode=null`);
+                } else {
+                  toggleKontaktor(kontaktorKey);
+                }
+              }}
+            />
+          )}
+          
+          {/* Resize handles for selected kontaktor - Same style as melting areas */}
+          {isEditMode && isSelected && (
+            <>
+              {/* Corner handles */}
+              <div
+                style={{
+                  position: 'absolute',
+                  top: '-8px',
+                  left: '-8px',
+                  width: '16px',
+                  height: '16px',
+                  backgroundColor: '#0066cc',
+                  border: '2px solid white',
+                  borderRadius: '50%',
+                  cursor: 'nw-resize',
+                  zIndex: 1001,
+                  boxShadow: '0 2px 4px rgba(0,0,0,0.3)'
+                }}
+                onMouseDown={(e) => {
+                  e.stopPropagation();
+                  handleKontaktorResize(e, kontaktorKey, position, 'nw-resize');
+                }}
+              />
+              <div
+                style={{
+                  position: 'absolute',
+                  top: '-8px',
+                  right: '-8px',
+                  width: '16px',
+                  height: '16px',
+                  backgroundColor: '#0066cc',
+                  border: '2px solid white',
+                  borderRadius: '50%',
+                  cursor: 'ne-resize',
+                  zIndex: 1001,
+                  boxShadow: '0 2px 4px rgba(0,0,0,0.3)'
+                }}
+                onMouseDown={(e) => {
+                  e.stopPropagation();
+                  handleKontaktorResize(e, kontaktorKey, position, 'ne-resize');
+                }}
+              />
+              <div
+                style={{
+                  position: 'absolute',
+                  bottom: '-8px',
+                  left: '-8px',
+                  width: '16px',
+                  height: '16px',
+                  backgroundColor: '#0066cc',
+                  border: '2px solid white',
+                  borderRadius: '50%',
+                  cursor: 'sw-resize',
+                  zIndex: 1001,
+                  boxShadow: '0 2px 4px rgba(0,0,0,0.3)'
+                }}
+                onMouseDown={(e) => {
+                  e.stopPropagation();
+                  handleKontaktorResize(e, kontaktorKey, position, 'sw-resize');
+                }}
+              />
+              <div
+                style={{
+                  position: 'absolute',
+                  bottom: '-8px',
+                  right: '-8px',
+                  width: '16px',
+                  height: '16px',
+                  backgroundColor: '#0066cc',
+                  border: '2px solid white',
+                  borderRadius: '50%',
+                  cursor: 'se-resize',
+                  zIndex: 1001,
+                  boxShadow: '0 2px 4px rgba(0,0,0,0.3)'
+                }}
+                onMouseDown={(e) => {
+                  e.stopPropagation();
+                  handleKontaktorResize(e, kontaktorKey, position, 'se-resize');
+                }}
+              />
+              
+              {/* Side handles */}
+              <div
+                style={{
+                  position: 'absolute',
+                  top: '50%',
+                  left: '-8px',
+                  width: '16px',
+                  height: '16px',
+                  backgroundColor: '#0066cc',
+                  border: '2px solid white',
+                  borderRadius: '50%',
+                  transform: 'translateY(-50%)',
+                  cursor: 'w-resize',
+                  zIndex: 1001,
+                  boxShadow: '0 2px 4px rgba(0,0,0,0.3)'
+                }}
+                onMouseDown={(e) => {
+                  e.stopPropagation();
+                  handleKontaktorResize(e, kontaktorKey, position, 'w-resize');
+                }}
+              />
+              <div
+                style={{
+                  position: 'absolute',
+                  top: '50%',
+                  right: '-8px',
+                  width: '16px',
+                  height: '16px',
+                  backgroundColor: '#0066cc',
+                  border: '2px solid white',
+                  borderRadius: '50%',
+                  transform: 'translateY(-50%)',
+                  cursor: 'e-resize',
+                  zIndex: 1001,
+                  boxShadow: '0 2px 4px rgba(0,0,0,0.3)'
+                }}
+                onMouseDown={(e) => {
+                  e.stopPropagation();
+                  handleKontaktorResize(e, kontaktorKey, position, 'e-resize');
+                }}
+              />
+              <div
+                style={{
+                  position: 'absolute',
+                  top: '-8px',
+                  left: '50%',
+                  width: '16px',
+                  height: '16px',
+                  backgroundColor: '#0066cc',
+                  border: '2px solid white',
+                  borderRadius: '50%',
+                  transform: 'translateX(-50%)',
+                  cursor: 'n-resize',
+                  zIndex: 1001,
+                  boxShadow: '0 2px 4px rgba(0,0,0,0.3)'
+                }}
+                onMouseDown={(e) => {
+                  e.stopPropagation();
+                  handleKontaktorResize(e, kontaktorKey, position, 'n-resize');
+                }}
+              />
+              <div
+                style={{
+                  position: 'absolute',
+                  bottom: '-8px',
+                  left: '50%',
+                  width: '16px',
+                  height: '16px',
+                  backgroundColor: '#0066cc',
+                  border: '2px solid white',
+                  borderRadius: '50%',
+                  transform: 'translateX(-50%)',
+                  cursor: 's-resize',
+                  zIndex: 1001,
+                  boxShadow: '0 2px 4px rgba(0,0,0,0.3)'
+                }}
+                onMouseDown={(e) => {
+                  e.stopPropagation();
+                  handleKontaktorResize(e, kontaktorKey, position, 's-resize');
+                }}
+              />
+              
+              {/* T-shape specific resize handles */}
+              {position.customShape === 'T' && (
+                <>
+                  {/* Handle untuk lebar kaki T (stem width) - di kiri kaki */}
+                  <div
+                    style={{
+                      position: 'absolute',
+                      bottom: '25%',
+                      left: `${25 - (position.stemWidth || 25)/2}%`,
+                      width: '12px',
+                      height: '12px',
+                      backgroundColor: '#ff9800',
+                      border: '2px solid white',
+                      borderRadius: '50%',
+                      cursor: 'ew-resize',
+                      zIndex: 1002,
+                      boxShadow: '0 2px 4px rgba(0,0,0,0.3)'
+                    }}
+                    title="Lebar Kaki T"
+                    onMouseDown={(e) => {
+                      e.stopPropagation();
+                      handleTShapeResize(e, kontaktorKey, position, 'stem-width-left');
+                    }}
+                  />
+                  
+                  {/* Handle untuk lebar kaki T (stem width) - di kanan kaki */}
+                  <div
+                    style={{
+                      position: 'absolute',
+                      bottom: '25%',
+                      left: `${75 + (position.stemWidth || 25)/2}%`,
+                      width: '12px',
+                      height: '12px',
+                      backgroundColor: '#ff9800',
+                      border: '2px solid white',
+                      borderRadius: '50%',
+                      cursor: 'ew-resize',
+                      zIndex: 1002,
+                      boxShadow: '0 2px 4px rgba(0,0,0,0.3)'
+                    }}
+                    title="Lebar Kaki T"
+                    onMouseDown={(e) => {
+                      e.stopPropagation();
+                      handleTShapeResize(e, kontaktorKey, position, 'stem-width-right');
+                    }}
+                  />
+                  
+                  {/* Handle untuk lebar topi T (head width) - di kiri topi */}
+                  <div
+                    style={{
+                      position: 'absolute',
+                      top: '10%',
+                      left: `${25 - (position.headWidth || 100)/2}%`,
+                      width: '12px',
+                      height: '12px',
+                      backgroundColor: '#9c27b0',
+                      border: '2px solid white',
+                      borderRadius: '50%',
+                      cursor: 'ew-resize',
+                      zIndex: 1002,
+                      boxShadow: '0 2px 4px rgba(0,0,0,0.3)'
+                    }}
+                    title="Lebar Topi T"
+                    onMouseDown={(e) => {
+                      e.stopPropagation();
+                      handleTShapeResize(e, kontaktorKey, position, 'head-width-left');
+                    }}
+                  />
+                  
+                  {/* Handle untuk lebar topi T (head width) - di kanan topi */}
+                  <div
+                    style={{
+                      position: 'absolute',
+                      top: '10%',
+                      left: `${75 + (position.headWidth || 100)/2}%`,
+                      width: '12px',
+                      height: '12px',
+                      backgroundColor: '#9c27b0',
+                      border: '2px solid white',
+                      borderRadius: '50%',
+                      cursor: 'ew-resize',
+                      zIndex: 1002,
+                      boxShadow: '0 2px 4px rgba(0,0,0,0.3)'
+                    }}
+                    title="Lebar Topi T"
+                    onMouseDown={(e) => {
+                      e.stopPropagation();
+                      handleTShapeResize(e, kontaktorKey, position, 'head-width-right');
+                    }}
+                  />
+                  
+                  {/* Handle untuk tinggi topi T (head height) - di tengah batas topi-kaki */}
+                  <div
+                    style={{
+                      position: 'absolute',
+                      top: `${position.headHeight || 35}%`,
+                      left: '50%',
+                      width: '12px',
+                      height: '12px',
+                      backgroundColor: '#4caf50',
+                      border: '2px solid white',
+                      borderRadius: '50%',
+                      transform: 'translateX(-50%)',
+                      cursor: 'ns-resize',
+                      zIndex: 1002,
+                      boxShadow: '0 2px 4px rgba(0,0,0,0.3)'
+                    }}
+                    title="Tinggi Topi T"
+                    onMouseDown={(e) => {
+                      e.stopPropagation();
+                      handleTShapeResize(e, kontaktorKey, position, 'head-height');
+                    }}
+                  />
+                </>
+              )}
+              
+              {/* T-shape toggle button for Lane CD Selatan Kontaktor 2 */}
+              {kontaktorKey === 'area14_kontaktor2' && (
+                <div
+                  style={{
+                    position: 'absolute',
+                    top: '-20px',
+                    left: '50%',
+                    transform: 'translateX(-50%)',
+                    backgroundColor: '#ff5722',
+                    color: 'white',
+                    padding: '2px 6px',
+                    fontSize: '8px',
+                    borderRadius: '3px',
+                    cursor: 'pointer',
+                    border: '1px solid #333',
+                    zIndex: 1002
+                  }}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setManualPositions(prev => ({
+                      ...prev,
+                      [kontaktorKey]: {
+                        ...prev[kontaktorKey],
+                        customShape: prev[kontaktorKey].customShape === 'T' ? undefined : 'T'
+                      }
+                    }));
+                  }}
+                >
+                  {position.customShape === 'T' ? '□ Normal' : 'T Shape'}
+                </div>
+              )}
+
+              {/* Shape editing panel for kontaktors */}
+              {isEditMode && isSelected && isShapeEditing && (
+                <div
+                  style={{
+                    position: 'absolute',
+                    top: '-50px',
+                    left: '50%',
+                    transform: 'translateX(-50%)',
+                    backgroundColor: 'rgba(0,0,0,0.9)',
+                    border: '2px solid #ffeb3b',
+                    borderRadius: '8px',
+                    padding: '8px',
+                    display: 'flex',
+                    gap: '4px',
+                    zIndex: 1002,
+                    fontSize: '10px',
+                  }}
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  {(['rectangle', 'square', 'L', 'T'] as ShapeType[]).map((shape) => (
+                    <button
+                      key={shape}
+                      style={{
+                        padding: '4px 8px',
+                        backgroundColor: position.customShape === shape ? '#ffeb3b' : '#666',
+                        color: position.customShape === shape ? '#000' : '#fff',
+                        border: 'none',
+                        borderRadius: '4px',
+                        cursor: 'pointer',
+                        fontSize: '9px',
+                        fontWeight: 'bold',
+                      }}
+                      onClick={() => {
+                        setManualPositions(prev => ({
+                          ...prev,
+                          [kontaktorKey]: {
+                            ...prev[kontaktorKey],
+                            customShape: shape,
+                            // Set default cutout values for L and T shapes
+                            cutoutWidth: shape === 'L' || shape === 'T' ? 30 : undefined,
+                            cutoutHeight: shape === 'L' || shape === 'T' ? 40 : undefined,
+                            cutoutPosition: shape === 'L' ? 'top-right' : undefined,
+                          }
+                        }));
+                        // Close shape editor after selection
+                        setIsShapeEditing(false);
+                      }}
+                    >
+                      {shape === 'rectangle' ? '▭' : 
+                       shape === 'square' ? '□' : 
+                       shape === 'L' ? 'L' : 'T'}
+                    </button>
+                  ))}
+                  <button
+                    style={{
+                      padding: '4px 8px',
+                      backgroundColor: '#e74c3c',
+                      color: '#fff',
+                      border: 'none',
+                      borderRadius: '4px',
+                      cursor: 'pointer',
+                      fontSize: '9px',
+                      marginLeft: '4px',
+                    }}
+                    onClick={() => setIsShapeEditing(false)}
+                  >
+                    ✕
+                  </button>
+                </div>
+              )}
+
+              {/* Manual resize editing panel for kontaktors - 4-directional */}
+              {isEditMode && isSelected && isResizeEditing && (
+                <div
+                  style={{
+                    position: 'absolute',
+                    top: '-120px',
+                    left: '50%',
+                    transform: 'translateX(-50%)',
+                    backgroundColor: 'rgba(33,150,243,0.95)',
+                    border: '2px solid #1976d2',
+                    borderRadius: '8px',
+                    padding: '12px',
+                    zIndex: 1003,
+                    fontSize: '9px',
+                    color: 'white',
+                    minWidth: '280px',
+                  }}
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  <div style={{ textAlign: 'center', fontWeight: 'bold', marginBottom: '10px' }}>
+                    � 4-Direction Manual Resize
+                  </div>
+                  
+                  {/* Cross-style layout for 4-direction controls */}
+                  <div style={{ position: 'relative', width: '200px', height: '120px', margin: '0 auto' }}>
+                    
+                    {/* Top controls - Extend Up */}
+                    <div style={{ 
+                      position: 'absolute', 
+                      top: '0', 
+                      left: '50%', 
+                      transform: 'translateX(-50%)',
+                      textAlign: 'center'
+                    }}>
+                      <div style={{ fontSize: '7px', marginBottom: '2px', fontWeight: 'bold' }}>↑ Extend Up</div>
+                      <div style={{ display: 'flex', gap: '2px' }}>
+                        <button
+                          style={{
+                            padding: '3px 6px',
+                            backgroundColor: '#f44336',
+                            color: 'white',
+                            border: 'none',
+                            borderRadius: '3px',
+                            cursor: 'pointer',
+                            fontSize: '8px',
+                          }}
+                          onClick={() => {
+                            setManualPositions(prev => ({
+                              ...prev,
+                              [kontaktorKey]: {
+                                ...prev[kontaktorKey],
+                                top: Math.min(prev[kontaktorKey].top + 0.5, 90),
+                                height: Math.max(1.5, prev[kontaktorKey].height - 0.5)
+                              }
+                            }));
+                          }}
+                        >
+                          -
+                        </button>
+                        <button
+                          style={{
+                            padding: '3px 6px',
+                            backgroundColor: '#4caf50',
+                            color: 'white',
+                            border: 'none',
+                            borderRadius: '3px',
+                            cursor: 'pointer',
+                            fontSize: '8px',
+                          }}
+                          onClick={() => {
+                            setManualPositions(prev => ({
+                              ...prev,
+                              [kontaktorKey]: {
+                                ...prev[kontaktorKey],
+                                top: Math.max(0, prev[kontaktorKey].top - 0.5),
+                                height: Math.min(30, prev[kontaktorKey].height + 0.5)
+                              }
+                            }));
+                          }}
+                        >
+                          +
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* Left controls - Extend Left */}
+                    <div style={{ 
+                      position: 'absolute', 
+                      left: '0', 
+                      top: '50%', 
+                      transform: 'translateY(-50%)',
+                      textAlign: 'center'
+                    }}>
+                      <div style={{ fontSize: '7px', marginBottom: '2px', fontWeight: 'bold' }}>← Extend Left</div>
+                      <div style={{ display: 'flex', gap: '2px' }}>
+                        <button
+                          style={{
+                            padding: '3px 6px',
+                            backgroundColor: '#f44336',
+                            color: 'white',
+                            border: 'none',
+                            borderRadius: '3px',
+                            cursor: 'pointer',
+                            fontSize: '8px',
+                          }}
+                          onClick={() => {
+                            setManualPositions(prev => ({
+                              ...prev,
+                              [kontaktorKey]: {
+                                ...prev[kontaktorKey],
+                                left: Math.min(prev[kontaktorKey].left + 0.5, 90),
+                                width: Math.max(2, prev[kontaktorKey].width - 0.5)
+                              }
+                            }));
+                          }}
+                        >
+                          -
+                        </button>
+                        <button
+                          style={{
+                            padding: '3px 6px',
+                            backgroundColor: '#4caf50',
+                            color: 'white',
+                            border: 'none',
+                            borderRadius: '3px',
+                            cursor: 'pointer',
+                            fontSize: '8px',
+                          }}
+                          onClick={() => {
+                            setManualPositions(prev => ({
+                              ...prev,
+                              [kontaktorKey]: {
+                                ...prev[kontaktorKey],
+                                left: Math.max(0, prev[kontaktorKey].left - 0.5),
+                                width: Math.min(50, prev[kontaktorKey].width + 0.5)
+                              }
+                            }));
+                          }}
+                        >
+                          +
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* Center info */}
+                    <div style={{ 
+                      position: 'absolute', 
+                      top: '50%', 
+                      left: '50%', 
+                      transform: 'translate(-50%, -50%)',
+                      textAlign: 'center',
+                      backgroundColor: 'rgba(0,0,0,0.7)',
+                      padding: '4px 8px',
+                      borderRadius: '4px'
+                    }}>
+                      <div style={{ fontSize: '7px', fontWeight: 'bold' }}>K{kontaktorNum}</div>
+                      <div style={{ fontSize: '6px' }}>{Math.round(position.width)}% × {Math.round(position.height * 10)/10}%</div>
+                    </div>
+
+                    {/* Right controls - Extend Right */}
+                    <div style={{ 
+                      position: 'absolute', 
+                      right: '0', 
+                      top: '50%', 
+                      transform: 'translateY(-50%)',
+                      textAlign: 'center'
+                    }}>
+                      <div style={{ fontSize: '7px', marginBottom: '2px', fontWeight: 'bold' }}>→ Extend Right</div>
+                      <div style={{ display: 'flex', gap: '2px' }}>
+                        <button
+                          style={{
+                            padding: '3px 6px',
+                            backgroundColor: '#f44336',
+                            color: 'white',
+                            border: 'none',
+                            borderRadius: '3px',
+                            cursor: 'pointer',
+                            fontSize: '8px',
+                          }}
+                          onClick={() => {
+                            setManualPositions(prev => ({
+                              ...prev,
+                              [kontaktorKey]: {
+                                ...prev[kontaktorKey],
+                                width: Math.max(2, prev[kontaktorKey].width - 0.5)
+                              }
+                            }));
+                          }}
+                        >
+                          -
+                        </button>
+                        <button
+                          style={{
+                            padding: '3px 6px',
+                            backgroundColor: '#4caf50',
+                            color: 'white',
+                            border: 'none',
+                            borderRadius: '3px',
+                            cursor: 'pointer',
+                            fontSize: '8px',
+                          }}
+                          onClick={() => {
+                            setManualPositions(prev => ({
+                              ...prev,
+                              [kontaktorKey]: {
+                                ...prev[kontaktorKey],
+                                width: Math.min(50, prev[kontaktorKey].width + 0.5)
+                              }
+                            }));
+                          }}
+                        >
+                          +
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* Bottom controls - Extend Down */}
+                    <div style={{ 
+                      position: 'absolute', 
+                      bottom: '0', 
+                      left: '50%', 
+                      transform: 'translateX(-50%)',
+                      textAlign: 'center'
+                    }}>
+                      <div style={{ fontSize: '7px', marginBottom: '2px', fontWeight: 'bold' }}>↓ Extend Down</div>
+                      <div style={{ display: 'flex', gap: '2px' }}>
+                        <button
+                          style={{
+                            padding: '3px 6px',
+                            backgroundColor: '#f44336',
+                            color: 'white',
+                            border: 'none',
+                            borderRadius: '3px',
+                            cursor: 'pointer',
+                            fontSize: '8px',
+                          }}
+                          onClick={() => {
+                            setManualPositions(prev => ({
+                              ...prev,
+                              [kontaktorKey]: {
+                                ...prev[kontaktorKey],
+                                height: Math.max(1.5, prev[kontaktorKey].height - 0.5)
+                              }
+                            }));
+                          }}
+                        >
+                          -
+                        </button>
+                        <button
+                          style={{
+                            padding: '3px 6px',
+                            backgroundColor: '#4caf50',
+                            color: 'white',
+                            border: 'none',
+                            borderRadius: '3px',
+                            cursor: 'pointer',
+                            fontSize: '8px',
+                          }}
+                          onClick={() => {
+                            setManualPositions(prev => ({
+                              ...prev,
+                              [kontaktorKey]: {
+                                ...prev[kontaktorKey],
+                                height: Math.min(30, prev[kontaktorKey].height + 0.5)
+                              }
+                            }));
+                          }}
+                        >
+                          +
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                  
+                  <div style={{ textAlign: 'center', marginTop: '10px' }}>
+                    <button
+                      style={{
+                        padding: '6px 16px',
+                        backgroundColor: '#e74c3c',
+                        color: '#fff',
+                        border: 'none',
+                        borderRadius: '4px',
+                        cursor: 'pointer',
+                        fontSize: '9px',
+                        fontWeight: 'bold',
+                      }}
+                      onClick={() => setIsResizeEditing(false)}
+                    >
+                      ✅ Done
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {/* Unified Control Panel for Kontaktors */}
+              {(() => {
+                const shouldShow = isEditMode && isSelected && !controlMode;
+                console.log(`🎛️ Control Panel for ${kontaktorKey}: isEditMode=${isEditMode}, isSelected=${isSelected}, controlMode=${controlMode}, shouldShow=${shouldShow}`);
+                return shouldShow;
+              })() && (
+                <div
+                  style={{
+                    position: 'absolute',
+                    top: '-80px',
+                    left: '50%',
+                    transform: 'translateX(-50%)',
+                    backgroundColor: 'rgba(0,0,0,0.9)',
+                    border: '2px solid #ffeb3b',
+                    borderRadius: '8px',
+                    padding: '10px',
+                    display: 'flex',
+                    gap: '8px',
+                    zIndex: 1001,
+                    fontSize: '9px',
+                  }}
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  <button
+                    style={{
+                      padding: '6px 12px',
+                      backgroundColor: '#2196f3',
+                      color: 'white',
+                      border: 'none',
+                      borderRadius: '4px',
+                      cursor: 'pointer',
+                      fontSize: '9px',
+                      fontWeight: 'bold',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '4px',
+                    }}
+                    onClick={() => setControlMode('move')}
+                  >
+                    🔄 Pindah Posisi
+                  </button>
+                  
+                  <button
+                    style={{
+                      padding: '6px 12px',
+                      backgroundColor: '#ff9800',
+                      color: 'white',
+                      border: 'none',
+                      borderRadius: '4px',
+                      cursor: 'pointer',
+                      fontSize: '9px',
+                      fontWeight: 'bold',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '4px',
+                    }}
+                    onClick={() => {
+                      setControlMode('shape');
+                      setIsShapeEditing(true);
+                    }}
+                  >
+                    🎨 Rubah Shape
+                  </button>
+                  
+                  <button
+                    style={{
+                      padding: '6px 12px',
+                      backgroundColor: '#4caf50',
+                      color: 'white',
+                      border: 'none',
+                      borderRadius: '4px',
+                      cursor: 'pointer',
+                      fontSize: '9px',
+                      fontWeight: 'bold',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '4px',
+                    }}
+                    onClick={() => {
+                      setControlMode('resize');
+                      setIsResizeEditing(true);
+                    }}
+                  >
+                    📐 Resize Ukuran
+                  </button>
+                </div>
+              )}
+            </>
+          )}
+        </div>
+      );
+    });
+  };
+
+  // Function to generate CSS styles for different shapes
+  const getShapeStyles = (shape: ShapeType | undefined, position: any) => {
+    if (!shape || shape === 'rectangle') return {};
+    
+    const cutoutWidth = position.cutoutWidth || 30; // Default 30%
+    const cutoutHeight = position.cutoutHeight || 40; // Default 40%
+    const cutoutPos = position.cutoutPosition || 'top-right';
+    
+    switch (shape) {
+      case 'square':
+        return {
+          aspectRatio: '1 / 1',
+        };
+      
+      case 'L':
+        // Create L shape using clip-path
+        let clipPath = '';
+        switch (cutoutPos) {
+          case 'top-right':
+            clipPath = `polygon(0% 0%, ${100 - cutoutWidth}% 0%, ${100 - cutoutWidth}% ${cutoutHeight}%, 100% ${cutoutHeight}%, 100% 100%, 0% 100%)`;
+            break;
+          case 'top-left':
+            clipPath = `polygon(${cutoutWidth}% 0%, 100% 0%, 100% 100%, 0% 100%, 0% ${cutoutHeight}%, ${cutoutWidth}% ${cutoutHeight}%)`;
+            break;
+          case 'bottom-right':
+            clipPath = `polygon(0% 0%, 100% 0%, 100% ${100 - cutoutHeight}%, ${100 - cutoutWidth}% ${100 - cutoutHeight}%, ${100 - cutoutWidth}% 100%, 0% 100%)`;
+            break;
+          case 'bottom-left':
+            clipPath = `polygon(0% 0%, 100% 0%, 100% 100%, ${cutoutWidth}% 100%, ${cutoutWidth}% ${100 - cutoutHeight}%, 0% ${100 - cutoutHeight}%)`;
+            break;
+        }
+        return { clipPath };
+      
+      case 'T':
+        // Enhanced T shape dengan 4 parameter terpisah
+        const stemWidth = Math.min(Math.max(position.stemWidth || cutoutWidth || 25, 15), 60); // Lebar kaki T
+        const headWidth = Math.min(Math.max(position.headWidth || 100, 60), 100); // Lebar topi T (default full width)
+        const headHeight = Math.min(Math.max(position.headHeight || cutoutHeight || 35, 20), 80); // Tinggi topi T
+        
+        // Calculate T-shape dengan parameter yang lebih fleksibel
+        const leftStem = 50 - stemWidth/2;
+        const rightStem = 50 + stemWidth/2;
+        const leftHead = 50 - headWidth/2;
+        const rightHead = 50 + headWidth/2;
+        
+        const clipPathT = `polygon(${leftHead}% 0%, ${rightHead}% 0%, ${rightHead}% ${headHeight}%, ${rightStem}% ${headHeight}%, ${rightStem}% 100%, ${leftStem}% 100%, ${leftStem}% ${headHeight}%, ${leftHead}% ${headHeight}%)`;
+        
+        return { 
+          clipPath: clipPathT,
+          // Force re-render on changes
+          willChange: 'auto',
+          // Ensure proper background rendering
+          backgroundClip: 'border-box'
+        };
+      
+      default:
+        return {};
+    }
+  };
+
+  // Function to render melting areas (Lane Melting Plant 1 & 2) - Keep as single area
+  const renderMeltingArea = (areaNum: number) => {
     const { areaKey, isOn } = getAreaDetails(areaNum);
     const position = manualPositions[areaKey];
     const isSelected = selectedArea === areaNum;
     
-    // Special handling for Lane C D Selatan (Area 8) - T shape
-    const isShapeT = areaNum === 8;
+    if (!position) {
+      console.warn(`❌ No position found for melting area: ${areaKey}`);
+      return null;
+    }
+
+    const shapeStyles = getShapeStyles(position.customShape, position);
     
     const boxStyle: React.CSSProperties = {
       position: 'absolute',
@@ -829,13 +2805,13 @@ function App() {
       left: `${position.left}%`,
       width: `${position.width}%`,
       height: `${position.height}%`,
-      backgroundColor: isEditMode 
-        ? (isSelected ? 'rgba(0,87,228,0.9)' : 'rgba(158,158,158,0.7)')
-        : (isOn ? 'rgba(76,175,80,0.5)' : 'rgba(244,67,54,0.7)'),
-      border: isEditMode
-        ? (isSelected ? '3px solid #0057e4' : '2px dashed #666')
-        : (isOn ? '2px solid #4caf50' : '2px solid #d32f2f'),
-      borderRadius: isShapeT ? '6px 6px 0 0' : '6px', // T shape has square bottom
+      backgroundColor: 'transparent', // Background sekarang di div terpisah
+      border: position.customShape === 'T' || position.customShape === 'L' 
+        ? 'none' // Remove border for T/L shapes, will be handled by border overlay
+        : (isEditMode
+            ? (isSelected ? '3px solid #0057e4' : '2px dashed #666')
+            : (isOn ? '2px solid #4caf50' : '2px solid #d32f2f')),
+      borderRadius: position.customShape === 'square' ? '6px' : '6px',
       display: 'flex',
       alignItems: 'center',
       justifyContent: 'center',
@@ -849,33 +2825,36 @@ function App() {
       zIndex: isSelected ? 1000 : (isEditMode ? 100 : 1),
       outline: isEditMode && isSelected ? '2px solid #ffeb3b' : 'none',
       outlineOffset: '2px',
-      // Special T-shape styling with dynamic foot width
-      ...(isShapeT && {
-        clipPath: `polygon(0% 0%, 100% 0%, 100% 60%, ${100 - tFootWidth}% 60%, ${100 - tFootWidth}% 100%, ${tFootWidth}% 100%, ${tFootWidth}% 60%, 0% 60%)`
-      })
+      boxSizing: 'border-box',
+      // Jangan apply clip-path di sini - akan diterapkan ke background div terpisah
     };
+
+    // For L and T shapes, add an invisible overlay to capture clicks
+    const needsClickOverlay = position.customShape === 'L' || position.customShape === 'T';
 
     const renderResizeHandles = () => {
       if (!isEditMode || !isSelected) return null;
       
       const handleStyle = {
         position: 'absolute' as const,
-        backgroundColor: '#1976d2',
+        backgroundColor: '#0066cc',
         border: '2px solid white',
-        borderRadius: '3px',
-        zIndex: 1001
+        borderRadius: '50%',
+        zIndex: 1001,
+        boxShadow: '0 2px 4px rgba(0,0,0,0.3)'
       };
 
+      // All shapes get full 8 resize handles
       return (
         <>
           {/* Corner handles */}
           <div
             style={{
               ...handleStyle,
-              top: '-6px',
-              left: '-6px',
-              width: '12px',
-              height: '12px',
+              top: '-8px',
+              left: '-8px',
+              width: '16px',
+              height: '16px',
               cursor: 'nw-resize'
             }}
             onMouseDown={(e) => handleMouseDown(areaNum, e, 'resize', 'top-left')}
@@ -883,10 +2862,10 @@ function App() {
           <div
             style={{
               ...handleStyle,
-              top: '-6px',
-              right: '-6px',
-              width: '12px',
-              height: '12px',
+              top: '-8px',
+              right: '-8px',
+              width: '16px',
+              height: '16px',
               cursor: 'ne-resize'
             }}
             onMouseDown={(e) => handleMouseDown(areaNum, e, 'resize', 'top-right')}
@@ -894,10 +2873,10 @@ function App() {
           <div
             style={{
               ...handleStyle,
-              bottom: '-6px',
-              left: '-6px',
-              width: '12px',
-              height: '12px',
+              bottom: '-8px',
+              left: '-8px',
+              width: '16px',
+              height: '16px',
               cursor: 'sw-resize'
             }}
             onMouseDown={(e) => handleMouseDown(areaNum, e, 'resize', 'bottom-left')}
@@ -905,24 +2884,48 @@ function App() {
           <div
             style={{
               ...handleStyle,
-              bottom: '-6px',
-              right: '-6px',
-              width: '12px',
-              height: '12px',
+              bottom: '-8px',
+              right: '-8px',
+              width: '16px',
+              height: '16px',
               cursor: 'se-resize'
             }}
             onMouseDown={(e) => handleMouseDown(areaNum, e, 'resize', 'bottom-right')}
           />
           
-          {/* Side handles */}
+          {/* Edge handles */}
+          <div
+            style={{
+              ...handleStyle,
+              top: '-8px',
+              left: '50%',
+              transform: 'translateX(-50%)',
+              width: '16px',
+              height: '16px',
+              cursor: 'n-resize'
+            }}
+            onMouseDown={(e) => handleMouseDown(areaNum, e, 'resize', 'top')}
+          />
+          <div
+            style={{
+              ...handleStyle,
+              bottom: '-8px',
+              left: '50%',
+              transform: 'translateX(-50%)',
+              width: '16px',
+              height: '16px',
+              cursor: 's-resize'
+            }}
+            onMouseDown={(e) => handleMouseDown(areaNum, e, 'resize', 'bottom')}
+          />
           <div
             style={{
               ...handleStyle,
               top: '50%',
-              left: '-6px',
-              width: '12px',
-              height: '20px',
+              left: '-8px',
               transform: 'translateY(-50%)',
+              width: '16px',
+              height: '16px',
               cursor: 'w-resize'
             }}
             onMouseDown={(e) => handleMouseDown(areaNum, e, 'resize', 'left')}
@@ -931,82 +2934,936 @@ function App() {
             style={{
               ...handleStyle,
               top: '50%',
-              right: '-6px',
-              width: '12px',
-              height: '20px',
+              right: '-8px',
               transform: 'translateY(-50%)',
+              width: '16px',
+              height: '16px',
               cursor: 'e-resize'
             }}
             onMouseDown={(e) => handleMouseDown(areaNum, e, 'resize', 'right')}
           />
-          <div
-            style={{
-              ...handleStyle,
-              top: '-6px',
-              left: '50%',
-              width: '20px',
-              height: '12px',
-              transform: 'translateX(-50%)',
-              cursor: 'n-resize'
-            }}
-            onMouseDown={(e) => handleMouseDown(areaNum, e, 'resize', 'top')}
-          />
-          <div
-            style={{
-              ...handleStyle,
-              bottom: '-6px',
-              left: '50%',
-              width: '20px',
-              height: '12px',
-              transform: 'translateX(-50%)',
-              cursor: 's-resize'
-            }}
-            onMouseDown={(e) => handleMouseDown(areaNum, e, 'resize', 'bottom')}
-          />
+          
+          {/* T-shape specific resize handles untuk melting areas */}
+          {position.customShape === 'T' && (
+            <>
+              {/* Handle untuk lebar kaki T (stem width) - di kiri kaki */}
+              <div
+                style={{
+                  ...handleStyle,
+                  bottom: '25%',
+                  left: `${25 - (position.stemWidth || 25)/2}%`,
+                  width: '12px',
+                  height: '12px',
+                  backgroundColor: '#ff9800',
+                  cursor: 'ew-resize'
+                }}
+                title="Lebar Kaki T"
+                onMouseDown={(e) => {
+                  e.stopPropagation();
+                  handleMeltingTShapeResize(e, areaNum, position, 'stem-width-left');
+                }}
+              />
+              
+              {/* Handle untuk lebar kaki T (stem width) - di kanan kaki */}
+              <div
+                style={{
+                  ...handleStyle,
+                  bottom: '25%',
+                  left: `${75 + (position.stemWidth || 25)/2}%`,
+                  width: '12px',
+                  height: '12px',
+                  backgroundColor: '#ff9800',
+                  cursor: 'ew-resize'
+                }}
+                title="Lebar Kaki T"
+                onMouseDown={(e) => {
+                  e.stopPropagation();
+                  handleMeltingTShapeResize(e, areaNum, position, 'stem-width-right');
+                }}
+              />
+              
+              {/* Handle untuk lebar topi T (head width) - di kiri topi */}
+              <div
+                style={{
+                  ...handleStyle,
+                  top: '10%',
+                  left: `${25 - (position.headWidth || 100)/2}%`,
+                  width: '12px',
+                  height: '12px',
+                  backgroundColor: '#9c27b0',
+                  cursor: 'ew-resize'
+                }}
+                title="Lebar Topi T"
+                onMouseDown={(e) => {
+                  e.stopPropagation();
+                  handleMeltingTShapeResize(e, areaNum, position, 'head-width-left');
+                }}
+              />
+              
+              {/* Handle untuk lebar topi T (head width) - di kanan topi */}
+              <div
+                style={{
+                  ...handleStyle,
+                  top: '10%',
+                  left: `${75 + (position.headWidth || 100)/2}%`,
+                  width: '12px',
+                  height: '12px',
+                  backgroundColor: '#9c27b0',
+                  cursor: 'ew-resize'
+                }}
+                title="Lebar Topi T"
+                onMouseDown={(e) => {
+                  e.stopPropagation();
+                  handleMeltingTShapeResize(e, areaNum, position, 'head-width-right');
+                }}
+              />
+              
+              {/* Handle untuk tinggi topi T (head height) - di tengah batas topi-kaki */}
+              <div
+                style={{
+                  ...handleStyle,
+                  top: `${position.headHeight || 35}%`,
+                  left: '50%',
+                  width: '12px',
+                  height: '12px',
+                  backgroundColor: '#4caf50',
+                  transform: 'translateX(-50%)',
+                  cursor: 'ns-resize'
+                }}
+                title="Tinggi Topi T"
+                onMouseDown={(e) => {
+                  e.stopPropagation();
+                  handleMeltingTShapeResize(e, areaNum, position, 'head-height');
+                }}
+              />
+            </>
+          )}
         </>
       );
     };
 
     return (
-      <div
-        key={areaNum}
-        style={boxStyle}
-        onMouseDown={(e) => handleMouseDown(areaNum, e, 'drag')}
-        onClick={(e) => {
-          e.stopPropagation();
-          if (isEditMode) {
-            setSelectedArea(isSelected ? null : areaNum);
-          } else {
-            toggleArea(areaKey);
-          }
-        }}
-        onMouseEnter={(e) => {
-          if (!isEditMode && !isDragging && !isResizing) {
-            e.currentTarget.style.transform = 'scale(1.05)';
-          }
-        }}
-        onMouseLeave={(e) => {
-          if (!isEditMode && !isDragging && !isResizing) {
-            e.currentTarget.style.transform = 'scale(1)';
-          }
-        }}
-      >
-        <div style={{ textAlign: 'center', pointerEvents: 'none' }}>
-          <div>{getAreaName(areaNum)}</div>
-          {isEditMode && isSelected && (
-            <div style={{ fontSize: '8px', marginTop: '2px' }}>
-              {isDragging ? '🔄 Moving...' : isResizing ? '📏 Resizing...' : '✅ Selected'}
-            </div>
+      <>
+        <div
+          key={areaNum}
+          style={boxStyle}
+          onMouseDown={(e) => handleMouseDown(areaNum, e, 'drag')}
+          onClick={(e) => {
+            e.stopPropagation();
+            if (isEditMode) {
+              // Single click to select and show control panel - keep selected
+              setSelectedArea(areaNum);
+              setControlMode(null); // Reset control mode to show main panel
+              setIsShapeEditing(false);
+              setIsResizeEditing(false);
+            } else {
+              // Check if this area has kontaktors
+              const kontaktorKeys = getKontaktorKeys(areaKey);
+              if (kontaktorKeys.length > 0) {
+                toggleMainLane(areaKey);
+              } else {
+                toggleArea(areaKey);
+              }
+            }
+          }}
+          onMouseEnter={(e) => {
+            if (!isEditMode && !isDragging && !isResizing) {
+              e.currentTarget.style.transform = 'scale(1.05)';
+            }
+          }}
+          onMouseLeave={(e) => {
+            if (!isEditMode && !isDragging && !isResizing) {
+              e.currentTarget.style.transform = 'scale(1)';
+            }
+          }}
+        >
+          {/* Background div dengan clip-path untuk shape */}
+          <div
+            style={{
+              position: 'absolute',
+              top: 0,
+              left: 0,
+              width: '100%',
+              height: '100%',
+              backgroundColor: isEditMode 
+                ? (isSelected ? 'rgba(0,87,228,0.9)' : 'rgba(158,158,158,0.7)')
+                : (isOn ? 'rgba(76,175,80,0.5)' : 'rgba(244,67,54,0.7)'),
+              zIndex: 0,
+              ...shapeStyles, // Apply clip-path hanya di sini
+            }}
+          />
+          
+          {/* Border overlay untuk T dan L shapes */}
+          {(position.customShape === 'T' || position.customShape === 'L') && (
+            <div
+              style={{
+                position: 'absolute',
+                top: 0,
+                left: 0,
+                width: '100%',
+                height: '100%',
+                backgroundColor: 'transparent',
+                border: isEditMode
+                  ? (isSelected ? '3px solid #0057e4' : '2px dashed #666')
+                  : (isOn ? '2px solid #4caf50' : '2px solid #d32f2f'),
+                zIndex: 1,
+                pointerEvents: 'none',
+                ...shapeStyles, // Apply same clip-path untuk border
+              }}
+            />
           )}
-          {!isEditMode && (
-            <div style={{ fontSize: '8px', marginTop: '2px' }}>
-              {isOn ? '✅ ON' : '❌ OFF'}
-            </div>
+          
+          {/* Invisible overlay untuk L dan T shapes - di atas background */}
+          {needsClickOverlay && (
+            <div
+              style={{
+                position: 'absolute',
+                top: 0,
+                left: 0,
+                width: '100%',
+                height: '100%',
+                backgroundColor: 'transparent',
+                zIndex: 1,
+                cursor: 'inherit'
+              }}
+              onClick={(e) => {
+                e.stopPropagation();
+                if (isEditMode) {
+                  setSelectedArea(areaNum);
+                  setControlMode(null);
+                  setIsShapeEditing(false);
+                  setIsResizeEditing(false);
+                } else {
+                  // Check if this area has kontaktors
+                  const kontaktorKeys = getKontaktorKeys(areaKey);
+                  if (kontaktorKeys.length > 0) {
+                    toggleMainLane(areaKey);
+                  } else {
+                    toggleArea(areaKey);
+                  }
+                }
+              }}
+            />
           )}
-        </div>
+
+          {/* Area content */}
+          <div style={{ textAlign: 'center', pointerEvents: 'none', zIndex: 2 }}>
+            <div>{getAreaName(areaNum)}</div>
+            {isEditMode && isSelected && (
+              <div style={{ fontSize: '8px', marginTop: '2px' }}>
+                {isDragging ? '🔄 Moving...' : 
+                 isResizing ? '📏 Resizing...' : 
+                 controlMode === 'shape' && isShapeEditing ? '🎨 Shape Edit' :
+                 controlMode === 'resize' && isResizeEditing ? '📐 Manual Resize' :
+                 controlMode === 'move' ? '🔄 Move Mode' :
+                 '✅ Selected - Choose Action'}
+              </div>
+            )}
+            {isEditMode && !isSelected && (
+              <div style={{ fontSize: '7px', marginTop: '2px', color: '#ffeb3b' }}>
+                Click to Select
+              </div>
+            )}
+            {!isEditMode && (
+              <div style={{ fontSize: '8px', marginTop: '2px' }}>
+                {isOn ? '✅ ON' : '❌ OFF'}
+              </div>
+            )}
+          </div>
         
-        {renderResizeHandles()}
+          {renderResizeHandles()}
+        
+        {/* Shape editing panel */}
+        {isEditMode && isSelected && isShapeEditing && (
+          <div
+            style={{
+              position: 'absolute',
+              top: '-50px',
+              left: '50%',
+              transform: 'translateX(-50%)',
+              backgroundColor: 'rgba(0,0,0,0.9)',
+              border: '2px solid #ffeb3b',
+              borderRadius: '8px',
+              padding: '8px',
+              display: 'flex',
+              gap: '4px',
+              zIndex: 1002,
+              fontSize: '10px',
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            {(['rectangle', 'square', 'L', 'T'] as ShapeType[]).map((shape) => (
+              <button
+                key={shape}
+                style={{
+                  padding: '4px 8px',
+                  backgroundColor: position.customShape === shape ? '#ffeb3b' : '#666',
+                  color: position.customShape === shape ? '#000' : '#fff',
+                  border: 'none',
+                  borderRadius: '4px',
+                  cursor: 'pointer',
+                  fontSize: '9px',
+                  fontWeight: 'bold',
+                }}
+                onClick={() => {
+                  setManualPositions(prev => ({
+                    ...prev,
+                    [areaKey]: {
+                      ...prev[areaKey],
+                      customShape: shape,
+                      // Set default cutout values for L and T shapes
+                      cutoutWidth: shape === 'L' || shape === 'T' ? 30 : undefined,
+                      cutoutHeight: shape === 'L' || shape === 'T' ? 40 : undefined,
+                      cutoutPosition: shape === 'L' ? 'top-right' : undefined,
+                    }
+                  }));
+                  // Close shape editor after selection
+                  setIsShapeEditing(false);
+                }}
+              >
+                {shape === 'rectangle' ? '▭' : 
+                 shape === 'square' ? '□' : 
+                 shape === 'L' ? 'L' : 'T'}
+              </button>
+            ))}
+            <button
+              style={{
+                padding: '4px 8px',
+                backgroundColor: '#e74c3c',
+                color: '#fff',
+                border: 'none',
+                borderRadius: '4px',
+                cursor: 'pointer',
+                fontSize: '9px',
+                marginLeft: '4px',
+              }}
+              onClick={() => setIsShapeEditing(false)}
+            >
+              ✕
+            </button>
+          </div>
+        )}
+
+        {/* L-shape cutout position controls */}
+        {isEditMode && isSelected && position.customShape === 'L' && (
+          <div
+            style={{
+              position: 'absolute',
+              top: '-25px',
+              right: '-60px',
+              backgroundColor: 'rgba(255,87,34,0.9)',
+              color: 'white',
+              padding: '4px',
+              borderRadius: '4px',
+              fontSize: '8px',
+              zIndex: 1003,
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div style={{ marginBottom: '2px', fontWeight: 'bold' }}>Cutout Position:</div>
+            <div style={{ display: 'grid', gridTemplate: '1fr 1fr / 1fr 1fr', gap: '2px' }}>
+              {(['top-left', 'top-right', 'bottom-left', 'bottom-right'] as const).map((pos) => (
+                <button
+                  key={pos}
+                  style={{
+                    padding: '2px 4px',
+                    backgroundColor: position.cutoutPosition === pos ? '#ffeb3b' : '#666',
+                    color: position.cutoutPosition === pos ? '#000' : '#fff',
+                    border: 'none',
+                    borderRadius: '2px',
+                    cursor: 'pointer',
+                    fontSize: '7px',
+                  }}
+                  onClick={() => {
+                    setManualPositions(prev => ({
+                      ...prev,
+                      [areaKey]: {
+                        ...prev[areaKey],
+                        cutoutPosition: pos,
+                      }
+                    }));
+                  }}
+                >
+                  {pos.replace('-', ' ')}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Manual resize editing panel for melting areas - 4-directional */}
+        {isEditMode && isSelected && isResizeEditing && (
+          <div
+            style={{
+              position: 'absolute',
+              top: '-140px',
+              left: '50%',
+              transform: 'translateX(-50%)',
+              backgroundColor: 'rgba(33,150,243,0.95)',
+              border: '2px solid #1976d2',
+              borderRadius: '8px',
+              padding: '15px',
+              zIndex: 1003,
+              fontSize: '10px',
+              color: 'white',
+              minWidth: '320px',
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div style={{ textAlign: 'center', fontWeight: 'bold', marginBottom: '12px' }}>
+              � 4-Direction Manual Resize - {getAreaName(areaNum)}
+            </div>
+            
+            {/* Cross-style layout for 4-direction controls */}
+            <div style={{ position: 'relative', width: '250px', height: '140px', margin: '0 auto' }}>
+              
+              {/* Top controls - Extend Up */}
+              <div style={{ 
+                position: 'absolute', 
+                top: '0', 
+                left: '50%', 
+                transform: 'translateX(-50%)',
+                textAlign: 'center'
+              }}>
+                <div style={{ fontSize: '8px', marginBottom: '3px', fontWeight: 'bold' }}>↑ Extend Up</div>
+                <div style={{ display: 'flex', gap: '3px' }}>
+                  <button
+                    style={{
+                      padding: '4px 8px',
+                      backgroundColor: '#f44336',
+                      color: 'white',
+                      border: 'none',
+                      borderRadius: '3px',
+                      cursor: 'pointer',
+                      fontSize: '9px',
+                      fontWeight: 'bold',
+                    }}
+                    onClick={() => {
+                      setManualPositions(prev => ({
+                        ...prev,
+                        [areaKey]: {
+                          ...prev[areaKey],
+                          top: Math.min(prev[areaKey].top + 1, 90),
+                          height: Math.max(3, prev[areaKey].height - 1)
+                        }
+                      }));
+                    }}
+                  >
+                    --
+                  </button>
+                  <button
+                    style={{
+                      padding: '4px 6px',
+                      backgroundColor: '#ff5722',
+                      color: 'white',
+                      border: 'none',
+                      borderRadius: '3px',
+                      cursor: 'pointer',
+                      fontSize: '9px',
+                    }}
+                    onClick={() => {
+                      setManualPositions(prev => ({
+                        ...prev,
+                        [areaKey]: {
+                          ...prev[areaKey],
+                          top: Math.min(prev[areaKey].top + 0.5, 90),
+                          height: Math.max(3, prev[areaKey].height - 0.5)
+                        }
+                      }));
+                    }}
+                  >
+                    -
+                  </button>
+                  <button
+                    style={{
+                      padding: '4px 6px',
+                      backgroundColor: '#4caf50',
+                      color: 'white',
+                      border: 'none',
+                      borderRadius: '3px',
+                      cursor: 'pointer',
+                      fontSize: '9px',
+                    }}
+                    onClick={() => {
+                      setManualPositions(prev => ({
+                        ...prev,
+                        [areaKey]: {
+                          ...prev[areaKey],
+                          top: Math.max(0, prev[areaKey].top - 0.5),
+                          height: Math.min(80, prev[areaKey].height + 0.5)
+                        }
+                      }));
+                    }}
+                  >
+                    +
+                  </button>
+                  <button
+                    style={{
+                      padding: '4px 8px',
+                      backgroundColor: '#2e7d32',
+                      color: 'white',
+                      border: 'none',
+                      borderRadius: '3px',
+                      cursor: 'pointer',
+                      fontSize: '9px',
+                      fontWeight: 'bold',
+                    }}
+                    onClick={() => {
+                      setManualPositions(prev => ({
+                        ...prev,
+                        [areaKey]: {
+                          ...prev[areaKey],
+                          top: Math.max(0, prev[areaKey].top - 1),
+                          height: Math.min(80, prev[areaKey].height + 1)
+                        }
+                      }));
+                    }}
+                  >
+                    ++
+                  </button>
+                </div>
+              </div>
+
+              {/* Left controls - Extend Left */}
+              <div style={{ 
+                position: 'absolute', 
+                left: '0', 
+                top: '50%', 
+                transform: 'translateY(-50%)',
+                textAlign: 'center'
+              }}>
+                <div style={{ fontSize: '8px', marginBottom: '3px', fontWeight: 'bold' }}>← Extend Left</div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                  <button
+                    style={{
+                      padding: '3px 6px',
+                      backgroundColor: '#f44336',
+                      color: 'white',
+                      border: 'none',
+                      borderRadius: '3px',
+                      cursor: 'pointer',
+                      fontSize: '8px',
+                      fontWeight: 'bold',
+                    }}
+                    onClick={() => {
+                      setManualPositions(prev => ({
+                        ...prev,
+                        [areaKey]: {
+                          ...prev[areaKey],
+                          left: Math.min(prev[areaKey].left + 1, 90),
+                          width: Math.max(5, prev[areaKey].width - 1)
+                        }
+                      }));
+                    }}
+                  >
+                    --
+                  </button>
+                  <button
+                    style={{
+                      padding: '3px 6px',
+                      backgroundColor: '#ff5722',
+                      color: 'white',
+                      border: 'none',
+                      borderRadius: '3px',
+                      cursor: 'pointer',
+                      fontSize: '8px',
+                    }}
+                    onClick={() => {
+                      setManualPositions(prev => ({
+                        ...prev,
+                        [areaKey]: {
+                          ...prev[areaKey],
+                          left: Math.min(prev[areaKey].left + 0.5, 90),
+                          width: Math.max(5, prev[areaKey].width - 0.5)
+                        }
+                      }));
+                    }}
+                  >
+                    -
+                  </button>
+                  <button
+                    style={{
+                      padding: '3px 6px',
+                      backgroundColor: '#4caf50',
+                      color: 'white',
+                      border: 'none',
+                      borderRadius: '3px',
+                      cursor: 'pointer',
+                      fontSize: '8px',
+                    }}
+                    onClick={() => {
+                      setManualPositions(prev => ({
+                        ...prev,
+                        [areaKey]: {
+                          ...prev[areaKey],
+                          left: Math.max(0, prev[areaKey].left - 0.5),
+                          width: Math.min(90, prev[areaKey].width + 0.5)
+                        }
+                      }));
+                    }}
+                  >
+                    +
+                  </button>
+                  <button
+                    style={{
+                      padding: '3px 6px',
+                      backgroundColor: '#2e7d32',
+                      color: 'white',
+                      border: 'none',
+                      borderRadius: '3px',
+                      cursor: 'pointer',
+                      fontSize: '8px',
+                      fontWeight: 'bold',
+                    }}
+                    onClick={() => {
+                      setManualPositions(prev => ({
+                        ...prev,
+                        [areaKey]: {
+                          ...prev[areaKey],
+                          left: Math.max(0, prev[areaKey].left - 1),
+                          width: Math.min(90, prev[areaKey].width + 1)
+                        }
+                      }));
+                    }}
+                  >
+                    ++
+                  </button>
+                </div>
+              </div>
+
+              {/* Center info */}
+              <div style={{ 
+                position: 'absolute', 
+                top: '50%', 
+                left: '50%', 
+                transform: 'translate(-50%, -50%)',
+                textAlign: 'center',
+                backgroundColor: 'rgba(0,0,0,0.8)',
+                padding: '6px 12px',
+                borderRadius: '6px',
+                border: '1px solid #ffeb3b'
+              }}>
+                <div style={{ fontSize: '8px', fontWeight: 'bold', color: '#ffeb3b' }}>{getAreaName(areaNum)}</div>
+                <div style={{ fontSize: '7px', marginTop: '2px' }}>
+                  {Math.round(position.width * 10)/10}% × {Math.round(position.height * 10)/10}%
+                </div>
+                <div style={{ fontSize: '6px', marginTop: '1px', color: '#ccc' }}>
+                  Pos: {Math.round(position.left)}%, {Math.round(position.top)}%
+                </div>
+              </div>
+
+              {/* Right controls - Extend Right */}
+              <div style={{ 
+                position: 'absolute', 
+                right: '0', 
+                top: '50%', 
+                transform: 'translateY(-50%)',
+                textAlign: 'center'
+              }}>
+                <div style={{ fontSize: '8px', marginBottom: '3px', fontWeight: 'bold' }}>→ Extend Right</div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                  <button
+                    style={{
+                      padding: '3px 6px',
+                      backgroundColor: '#f44336',
+                      color: 'white',
+                      border: 'none',
+                      borderRadius: '3px',
+                      cursor: 'pointer',
+                      fontSize: '8px',
+                      fontWeight: 'bold',
+                    }}
+                    onClick={() => {
+                      setManualPositions(prev => ({
+                        ...prev,
+                        [areaKey]: {
+                          ...prev[areaKey],
+                          width: Math.max(5, prev[areaKey].width - 1)
+                        }
+                      }));
+                    }}
+                  >
+                    --
+                  </button>
+                  <button
+                    style={{
+                      padding: '3px 6px',
+                      backgroundColor: '#ff5722',
+                      color: 'white',
+                      border: 'none',
+                      borderRadius: '3px',
+                      cursor: 'pointer',
+                      fontSize: '8px',
+                    }}
+                    onClick={() => {
+                      setManualPositions(prev => ({
+                        ...prev,
+                        [areaKey]: {
+                          ...prev[areaKey],
+                          width: Math.max(5, prev[areaKey].width - 0.5)
+                        }
+                      }));
+                    }}
+                  >
+                    -
+                  </button>
+                  <button
+                    style={{
+                      padding: '3px 6px',
+                      backgroundColor: '#4caf50',
+                      color: 'white',
+                      border: 'none',
+                      borderRadius: '3px',
+                      cursor: 'pointer',
+                      fontSize: '8px',
+                    }}
+                    onClick={() => {
+                      setManualPositions(prev => ({
+                        ...prev,
+                        [areaKey]: {
+                          ...prev[areaKey],
+                          width: Math.min(90, prev[areaKey].width + 0.5)
+                        }
+                      }));
+                    }}
+                  >
+                    +
+                  </button>
+                  <button
+                    style={{
+                      padding: '3px 6px',
+                      backgroundColor: '#2e7d32',
+                      color: 'white',
+                      border: 'none',
+                      borderRadius: '3px',
+                      cursor: 'pointer',
+                      fontSize: '8px',
+                      fontWeight: 'bold',
+                    }}
+                    onClick={() => {
+                      setManualPositions(prev => ({
+                        ...prev,
+                        [areaKey]: {
+                          ...prev[areaKey],
+                          width: Math.min(90, prev[areaKey].width + 1)
+                        }
+                      }));
+                    }}
+                  >
+                    ++
+                  </button>
+                </div>
+              </div>
+
+              {/* Bottom controls - Extend Down */}
+              <div style={{ 
+                position: 'absolute', 
+                bottom: '0', 
+                left: '50%', 
+                transform: 'translateX(-50%)',
+                textAlign: 'center'
+              }}>
+                <div style={{ fontSize: '8px', marginBottom: '3px', fontWeight: 'bold' }}>↓ Extend Down</div>
+                <div style={{ display: 'flex', gap: '3px' }}>
+                  <button
+                    style={{
+                      padding: '4px 8px',
+                      backgroundColor: '#f44336',
+                      color: 'white',
+                      border: 'none',
+                      borderRadius: '3px',
+                      cursor: 'pointer',
+                      fontSize: '9px',
+                      fontWeight: 'bold',
+                    }}
+                    onClick={() => {
+                      setManualPositions(prev => ({
+                        ...prev,
+                        [areaKey]: {
+                          ...prev[areaKey],
+                          height: Math.max(3, prev[areaKey].height - 1)
+                        }
+                      }));
+                    }}
+                  >
+                    --
+                  </button>
+                  <button
+                    style={{
+                      padding: '4px 6px',
+                      backgroundColor: '#ff5722',
+                      color: 'white',
+                      border: 'none',
+                      borderRadius: '3px',
+                      cursor: 'pointer',
+                      fontSize: '9px',
+                    }}
+                    onClick={() => {
+                      setManualPositions(prev => ({
+                        ...prev,
+                        [areaKey]: {
+                          ...prev[areaKey],
+                          height: Math.max(3, prev[areaKey].height - 0.5)
+                        }
+                      }));
+                    }}
+                  >
+                    -
+                  </button>
+                  <button
+                    style={{
+                      padding: '4px 6px',
+                      backgroundColor: '#4caf50',
+                      color: 'white',
+                      border: 'none',
+                      borderRadius: '3px',
+                      cursor: 'pointer',
+                      fontSize: '9px',
+                    }}
+                    onClick={() => {
+                      setManualPositions(prev => ({
+                        ...prev,
+                        [areaKey]: {
+                          ...prev[areaKey],
+                          height: Math.min(80, prev[areaKey].height + 0.5)
+                        }
+                      }));
+                    }}
+                  >
+                    +
+                  </button>
+                  <button
+                    style={{
+                      padding: '4px 8px',
+                      backgroundColor: '#2e7d32',
+                      color: 'white',
+                      border: 'none',
+                      borderRadius: '3px',
+                      cursor: 'pointer',
+                      fontSize: '9px',
+                      fontWeight: 'bold',
+                    }}
+                    onClick={() => {
+                      setManualPositions(prev => ({
+                        ...prev,
+                        [areaKey]: {
+                          ...prev[areaKey],
+                          height: Math.min(80, prev[areaKey].height + 1)
+                        }
+                      }));
+                    }}
+                  >
+                    ++
+                  </button>
+                </div>
+              </div>
+            </div>
+            
+            <div style={{ textAlign: 'center', marginTop: '15px' }}>
+              <button
+                style={{
+                  padding: '8px 20px',
+                  backgroundColor: '#e74c3c',
+                  color: '#fff',
+                  border: 'none',
+                  borderRadius: '5px',
+                  cursor: 'pointer',
+                  fontSize: '10px',
+                  fontWeight: 'bold',
+                }}
+                onClick={() => setIsResizeEditing(false)}
+              >
+                ✅ Done Resizing
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* Unified Control Panel for Melting Areas */}
+        {isEditMode && isSelected && !controlMode && (
+          <div
+            style={{
+              position: 'absolute',
+              top: '-80px',
+              left: '50%',
+              transform: 'translateX(-50%)',
+              backgroundColor: 'rgba(0,0,0,0.9)',
+              border: '2px solid #ffeb3b',
+              borderRadius: '8px',
+              padding: '10px',
+              display: 'flex',
+              gap: '8px',
+              zIndex: 1001,
+              fontSize: '10px',
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <button
+              style={{
+                padding: '8px 14px',
+                backgroundColor: '#2196f3',
+                color: 'white',
+                border: 'none',
+                borderRadius: '4px',
+                cursor: 'pointer',
+                fontSize: '10px',
+                fontWeight: 'bold',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '6px',
+              }}
+              onClick={() => setControlMode('move')}
+            >
+              🔄 Pindah Posisi
+            </button>
+            
+            <button
+              style={{
+                padding: '8px 14px',
+                backgroundColor: '#ff9800',
+                color: 'white',
+                border: 'none',
+                borderRadius: '4px',
+                cursor: 'pointer',
+                fontSize: '10px',
+                fontWeight: 'bold',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '6px',
+              }}
+              onClick={() => {
+                setControlMode('shape');
+                setIsShapeEditing(true);
+              }}
+            >
+              🎨 Rubah Shape
+            </button>
+            
+            <button
+              style={{
+                padding: '8px 14px',
+                backgroundColor: '#4caf50',
+                color: 'white',
+                border: 'none',
+                borderRadius: '4px',
+                cursor: 'pointer',
+                fontSize: '10px',
+                fontWeight: 'bold',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '6px',
+              }}
+              onClick={() => {
+                setControlMode('resize');
+                setIsResizeEditing(true);
+              }}
+            >
+              📐 Resize Ukuran
+            </button>
+          </div>
+        )}
       </div>
+      </>
     );
   };
 
@@ -1485,78 +4342,7 @@ function App() {
               </button>
             </div>
             
-            {/* Bottom row - Edit mode buttons */}
-            {isEditMode && (
-              <div style={{ display: 'flex', gap: '4px', alignItems: 'center', flexWrap: 'wrap' }}>
-                <button 
-                  onClick={() => {
-                    localStorage.setItem('iot-plant-positions', JSON.stringify(manualPositions));
-                    setSaveMessage('💾 Layout saved!');
-                    setTimeout(() => setSaveMessage(''), 2000);
-                  }}
-                  style={{
-                    backgroundColor: '#2196f3',
-                    color: 'white',
-                    border: 'none',
-                    padding: '4px 8px',
-                    borderRadius: '3px',
-                    cursor: 'pointer',
-                    fontSize: '10px',
-                    fontWeight: 'bold'
-                  }}
-                >
-                  💾 Save
-                </button>
-                
-                <button 
-                  onClick={saveAsDefaultLayout}
-                  style={{
-                    backgroundColor: '#4caf50',
-                    color: 'white',
-                    border: 'none',
-                    padding: '4px 8px',
-                    borderRadius: '3px',
-                    cursor: 'pointer',
-                    fontSize: '10px',
-                    fontWeight: 'bold'
-                  }}
-                >
-                  ⭐ Save as Default
-                </button>
-                
-                <button 
-                  onClick={resetToDefaultLayout}
-                  style={{
-                    backgroundColor: '#ff9800',
-                    color: 'white',
-                    border: 'none',
-                    padding: '4px 8px',
-                    borderRadius: '3px',
-                    cursor: 'pointer',
-                    fontSize: '10px',
-                    fontWeight: 'bold'
-                  }}
-                >
-                  🔄 Reset to Default
-                </button>
-                
-                <button 
-                  onClick={resetPositions}
-                  style={{
-                    backgroundColor: '#9e9e9e',
-                    color: 'white',
-                    border: 'none',
-                    padding: '4px 8px',
-                    borderRadius: '3px',
-                    cursor: 'pointer',
-                    fontSize: '10px',
-                    fontWeight: 'bold'
-                  }}
-                >
-                  🔄 Reset Layout
-                </button>
-              </div>
-            )}
+
           </div>
         </div>
 
@@ -1577,6 +4363,113 @@ function App() {
             animation: 'fadeIn 0.3s ease-in-out'
           }}>
             {saveMessage}
+          </div>
+        )}
+
+        {/* Edit Mode Control Panel - Bottom Right */}
+        {isEditMode && (
+          <div style={{
+            position: 'fixed',
+            bottom: '20px',
+            right: '20px',
+            backgroundColor: 'rgba(33, 150, 243, 0.95)',
+            borderRadius: '12px',
+            padding: '15px',
+            boxShadow: '0 8px 24px rgba(0,0,0,0.3)',
+            zIndex: 1000,
+            backdropFilter: 'blur(10px)'
+          }}>
+            <div style={{
+              color: 'white',
+              fontSize: '14px',
+              fontWeight: 'bold',
+              marginBottom: '12px',
+              textAlign: 'center'
+            }}>
+              🔧 Layout Editor
+            </div>
+            
+            <div style={{ 
+              display: 'flex', 
+              flexDirection: 'column',
+              gap: '8px',
+              minWidth: '200px'
+            }}>
+              <button 
+                onClick={clearAllLayouts}
+                style={{
+                  backgroundColor: '#f44336',
+                  color: 'white',
+                  border: 'none',
+                  padding: '10px 16px',
+                  borderRadius: '8px',
+                  cursor: 'pointer',
+                  fontSize: '12px',
+                  fontWeight: 'bold',
+                  width: '100%'
+                }}
+                title="Load from kontaktor positions (Firebase default)"
+              >
+                ♻ Reset & Sync All
+              </button>
+              
+              <button 
+                onClick={saveAsDefaultLayout}
+                style={{
+                  backgroundColor: '#4caf50',
+                  color: 'white',
+                  border: 'none',
+                  padding: '10px 16px',
+                  borderRadius: '8px',
+                  cursor: 'pointer',
+                  fontSize: '12px',
+                  fontWeight: 'bold',
+                  width: '100%'
+                }}
+                title="Save current layout changes to localStorage"
+              >
+                ⭐ Save as Default
+              </button>
+              
+              <button 
+                onClick={resetToDefaultLayout}
+                style={{
+                  backgroundColor: '#ff9800',
+                  color: 'white',
+                  border: 'none',
+                  padding: '10px 16px',
+                  borderRadius: '8px',
+                  cursor: 'pointer',
+                  fontSize: '12px',
+                  fontWeight: 'bold',
+                  width: '100%'
+                }}
+                title="Load from saved localStorage default"
+              >
+                � Reset to Default
+              </button>
+
+            </div>
+            
+            <div style={{ marginTop: '8px' }}>
+              <button 
+                onClick={clearAllLayouts}
+                style={{
+                  backgroundColor: '#f44336',
+                  color: 'white',
+                  border: 'none',
+                  padding: '8px 12px',
+                  borderRadius: '6px',
+                  cursor: 'pointer',
+                  fontSize: '11px',
+                  fontWeight: 'bold',
+                  width: '100%'
+                }}
+
+              >
+                � Reset & Sync All
+              </button>
+            </div>
           </div>
         )}
 
@@ -1628,11 +4521,21 @@ function App() {
                 if (isEditMode) {
                   // Deselect any selected area when clicking on empty space
                   setSelectedArea(null);
+                  setSelectedKontaktor(null);
+                  setControlMode(null);
+                  setIsShapeEditing(false);
+                  setIsResizeEditing(false);
                 }
               }}
             >
-              {/* Render Plant 2 Areas - Updated for new lanes */}
-              {[1, 2, 3, 4, 5].map(areaNum => renderAreaBox(areaNum))}
+              {/* Render Plant 2 Kontaktor Areas - Direct kontaktor boxes instead of main lanes */}
+              {[1, 2, 3, 4].map(areaNum => {
+                const areaKey = getAreaKey(areaNum);
+                return renderKontaktorBoxes(areaKey);
+              })}
+              
+              {/* Render Lane Melting Plant 2 - Keep as single area */}
+              {renderMeltingArea(5)}
               
               {/* Edit mode instructions */}
               {isEditMode && (
@@ -1695,11 +4598,21 @@ function App() {
                 if (isEditMode) {
                   // Deselect any selected area when clicking on empty space
                   setSelectedArea(null);
+                  setSelectedKontaktor(null);
+                  setControlMode(null);
+                  setIsShapeEditing(false);
+                  setIsResizeEditing(false);
                 }
               }}
             >
-              {/* Render Plant 1 Areas - Updated for new lanes */}
-              {[7, 8, 9, 10, 11].map(areaNum => renderAreaBox(areaNum))}
+              {/* Render Plant 1 Kontaktor Areas - Direct kontaktor boxes instead of main lanes */}
+              {[7, 8, 9, 10].map(areaNum => {
+                const areaKey = getAreaKey(areaNum);
+                return renderKontaktorBoxes(areaKey);
+              })}
+              
+              {/* Render Lane Melting Plant 1 - Keep as single area */}
+              {renderMeltingArea(11)}
               
               {/* Edit mode instructions */}
               {isEditMode && (
@@ -1874,73 +4787,133 @@ function App() {
               
               {[4, 1, 2, 3, 5].map((areaNum) => { // Lane A, B, C, D, Melting (alphabetical order)
                 const { areaKey, isOn, zone, area } = getAreaDetails(areaNum);
+                const kontaktorKeys = getKontaktorKeys(areaKey);
+                const hasKontaktors = kontaktorKeys.length > 0;
+                
+                // DEBUG LOG
+                console.log(`🔍 Plant 2 - Area ${areaNum} (${areaKey}): hasKontaktors=${hasKontaktors}, kontaktorKeys=`, kontaktorKeys);
                 
                 return (
                   <div key={areaNum} style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    marginBottom: '8px',
+                    marginBottom: '12px',
                     backgroundColor: 'white',
-                    padding: '12px',
-                    borderRadius: '6px',
+                    borderRadius: '8px',
                     boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
-                    border: isOn ? '2px solid #4caf50' : '2px solid #f44336'
+                    border: isOn ? '2px solid #4caf50' : '2px solid #f44336',
+                    overflow: 'hidden'
                   }}>
-                    {/* Status Indicator Circle */}
+                    {/* Main Lane Control */}
                     <div style={{
-                      width: '20px',
-                      height: '20px',
-                      borderRadius: '50%',
-                      backgroundColor: isOn ? '#4caf50' : '#f44336',
-                      marginRight: '10px',
                       display: 'flex',
                       alignItems: 'center',
-                      justifyContent: 'center',
-                      boxShadow: '0 2px 4px rgba(0,0,0,0.2)'
+                      padding: '12px',
+                      backgroundColor: isOn ? '#f8fff8' : '#fff5f5'
                     }}>
+                      {/* Status Indicator Circle */}
                       <div style={{
-                        width: '6px',
-                        height: '6px',
+                        width: '20px',
+                        height: '20px',
                         borderRadius: '50%',
-                        backgroundColor: 'white'
-                      }}></div>
-                    </div>
-                    
-                    {/* Area Info */}
-                    <div style={{ flex: 1 }}>
-                      <div style={{ 
-                        fontWeight: 'bold',
-                        color: '#333',
-                        fontSize: '13px'
-                      }}>
-                        {getAreaName(areaNum)}
-                      </div>
-                      <div style={{ 
-                        fontSize: '10px',
-                        color: '#666'
-                      }}>
-                        {zone} {area && area.device ? `� ${area.device.status}` : ''}
-                      </div>
-                    </div>
-                    
-                    {/* ON/OFF Button */}
-                    <button
-                      onClick={() => toggleArea(areaKey)}
-                      style={{
                         backgroundColor: isOn ? '#4caf50' : '#f44336',
-                        color: 'white',
-                        border: 'none',
-                        padding: '6px 12px',
-                        borderRadius: '4px',
-                        cursor: 'pointer',
-                        fontSize: '11px',
-                        fontWeight: 'bold',
-                        minWidth: '45px',
-                        transition: 'all 0.2s ease'
-                      }}
-                    >
-                      {isOn ? 'ON' : 'OFF'}
-                    </button>
+                        marginRight: '10px',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        boxShadow: '0 2px 4px rgba(0,0,0,0.2)'
+                      }}>
+                        <div style={{
+                          width: '6px',
+                          height: '6px',
+                          borderRadius: '50%',
+                          backgroundColor: 'white'
+                        }}></div>
+                      </div>
+                      
+                      {/* Area Info */}
+                      <div style={{ flex: 1 }}>
+                        <div style={{ 
+                          fontWeight: 'bold',
+                          color: '#333',
+                          fontSize: '13px'
+                        }}>
+                          {getAreaName(areaNum)}
+                          {hasKontaktors && <span style={{ fontSize: '10px', color: '#666' }}> (Main Control)</span>}
+                        </div>
+                        <div style={{ 
+                          fontSize: '10px',
+                          color: '#666'
+                        }}>
+                          {zone} {area && area.device ? `� ${area.device.status}` : ''}
+                          {hasKontaktors && <span> • {kontaktorKeys.length} Kontaktors</span>}
+                        </div>
+                      </div>
+                      
+                      {/* ON/OFF Button */}
+                      <button
+                        onClick={() => hasKontaktors ? toggleMainLane(areaKey) : toggleArea(areaKey)}
+                        style={{
+                          backgroundColor: isOn ? '#4caf50' : '#f44336',
+                          color: 'white',
+                          border: 'none',
+                          padding: '6px 12px',
+                          borderRadius: '4px',
+                          cursor: 'pointer',
+                          fontSize: '11px',
+                          fontWeight: 'bold',
+                          minWidth: '45px',
+                          transition: 'all 0.2s ease'
+                        }}
+                      >
+                        {isOn ? 'ON' : 'OFF'}
+                      </button>
+                    </div>
+
+                    {/* Individual Kontaktor Controls */}
+                    {hasKontaktors && (
+                      <div style={{
+                        backgroundColor: '#f8f9fa',
+                        padding: '8px 12px',
+                        borderTop: '1px solid #e9ecef'
+                      }}>
+                        <div style={{ 
+                          fontSize: '10px', 
+                          color: '#666', 
+                          marginBottom: '6px',
+                          fontWeight: 'bold'
+                        }}>
+                          Individual Kontaktor Controls:
+                        </div>
+                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px' }}>
+                          {kontaktorKeys.map((kontaktorKey, index) => {
+                            const kontaktorIsOn = areaStates[kontaktorKey];
+                            const kontaktorNum = index + 1;
+                            
+                            return (
+                              <button
+                                key={kontaktorKey}
+                                onClick={() => toggleKontaktor(kontaktorKey)}
+                                style={{
+                                  backgroundColor: kontaktorIsOn ? '#4caf50' : '#f44336',
+                                  color: 'white',
+                                  border: 'none',
+                                  padding: '4px 8px',
+                                  borderRadius: '3px',
+                                  cursor: 'pointer',
+                                  fontSize: '9px',
+                                  fontWeight: 'bold',
+                                  minWidth: '35px',
+                                  transition: 'all 0.2s ease',
+                                  flex: '1',
+                                  maxWidth: '70px'
+                                }}
+                              >
+                                K{kontaktorNum}
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    )}
                   </div>
                 );
               })}
@@ -1962,73 +4935,146 @@ function App() {
 
               {[7,8,9,10,11].map((areaNum) => {
                 const { areaKey, isOn, zone, area } = getAreaDetails(areaNum);
+                const kontaktorKeys = getKontaktorKeys(areaKey);
+                const hasKontaktors = kontaktorKeys.length > 0;
                 
+                // Special rendering for Lane C D Utara dengan monitoring daya
+                if (areaNum === 10) {
+                  return <LaneCDUtaraPanel 
+                    key={areaNum} 
+                    isOn={isOn} 
+                    areaKey={areaKey} 
+                    getAreaName={getAreaName} 
+                    toggleArea={toggleArea}
+                    toggleMainLane={toggleMainLane}
+                    kontaktorKeys={kontaktorKeys}
+                    areaStates={areaStates}
+                    toggleKontaktor={toggleKontaktor}
+                  />;
+                }
+                
+                // Default rendering untuk area lain dengan kontaktor controls
                 return (
                   <div key={areaNum} style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    marginBottom: '8px',
+                    marginBottom: '12px',
                     backgroundColor: 'white',
-                    padding: '12px',
-                    borderRadius: '6px',
+                    borderRadius: '8px',
                     boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
-                    border: isOn ? '2px solid #4caf50' : '2px solid #f44336'
+                    border: isOn ? '2px solid #4caf50' : '2px solid #f44336',
+                    overflow: 'hidden'
                   }}>
-                    {/* Status Indicator Circle */}
+                    {/* Main Lane Control */}
                     <div style={{
-                      width: '20px',
-                      height: '20px',
-                      borderRadius: '50%',
-                      backgroundColor: isOn ? '#4caf50' : '#f44336',
-                      marginRight: '10px',
                       display: 'flex',
                       alignItems: 'center',
-                      justifyContent: 'center',
-                      boxShadow: '0 2px 4px rgba(0,0,0,0.2)'
+                      padding: '12px',
+                      backgroundColor: isOn ? '#f8fff8' : '#fff5f5'
                     }}>
+                      {/* Status Indicator Circle */}
                       <div style={{
-                        width: '6px',
-                        height: '6px',
+                        width: '20px',
+                        height: '20px',
                         borderRadius: '50%',
-                        backgroundColor: 'white'
-                      }}></div>
-                    </div>
-                    
-                    {/* Area Info */}
-                    <div style={{ flex: 1 }}>
-                      <div style={{ 
-                        fontWeight: 'bold',
-                        color: '#333',
-                        fontSize: '13px'
-                      }}>
-                        {getAreaName(areaNum)}
-                      </div>
-                      <div style={{ 
-                        fontSize: '10px',
-                        color: '#666'
-                      }}>
-                        {zone} {area && area.device ? `� ${area.device.status}` : ''}
-                      </div>
-                    </div>
-                    
-                    {/* ON/OFF Button */}
-                    <button
-                      onClick={() => toggleArea(areaKey)}
-                      style={{
                         backgroundColor: isOn ? '#4caf50' : '#f44336',
-                        color: 'white',
-                        border: 'none',
-                        padding: '6px 12px',
-                        borderRadius: '4px',
-                        cursor: 'pointer',
-                        fontSize: '11px',
-                        fontWeight: 'bold',
-                        minWidth: '45px',
-                        transition: 'all 0.2s ease'
-                      }}
-                    >
-                      {isOn ? 'ON' : 'OFF'}
-                    </button>
+                        marginRight: '10px',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        boxShadow: '0 2px 4px rgba(0,0,0,0.2)'
+                      }}>
+                        <div style={{
+                          width: '6px',
+                          height: '6px',
+                          borderRadius: '50%',
+                          backgroundColor: 'white'
+                        }}></div>
+                      </div>
+                      
+                      {/* Area Info */}
+                      <div style={{ flex: 1 }}>
+                        <div style={{ 
+                          fontWeight: 'bold',
+                          color: '#333',
+                          fontSize: '13px'
+                        }}>
+                          {getAreaName(areaNum)}
+                          {hasKontaktors && <span style={{ fontSize: '10px', color: '#666' }}> (Main Control)</span>}
+                        </div>
+                        <div style={{ 
+                          fontSize: '10px',
+                          color: '#666'
+                        }}>
+                          {zone} {area && area.device ? `� ${area.device.status}` : ''}
+                          {hasKontaktors && <span> • {kontaktorKeys.length} Kontaktors</span>}
+                        </div>
+                      </div>
+                      
+                      {/* ON/OFF Button */}
+                      <button
+                        onClick={() => hasKontaktors ? toggleMainLane(areaKey) : toggleArea(areaKey)}
+                        style={{
+                          backgroundColor: isOn ? '#4caf50' : '#f44336',
+                          color: 'white',
+                          border: 'none',
+                          padding: '6px 12px',
+                          borderRadius: '4px',
+                          cursor: 'pointer',
+                          fontSize: '11px',
+                          fontWeight: 'bold',
+                          minWidth: '45px',
+                          transition: 'all 0.2s ease'
+                        }}
+                      >
+                        {isOn ? 'ON' : 'OFF'}
+                      </button>
+                    </div>
+
+                    {/* Individual Kontaktor Controls */}
+                    {hasKontaktors && (
+                      <div style={{
+                        backgroundColor: '#f8f9fa',
+                        padding: '8px 12px',
+                        borderTop: '1px solid #e9ecef'
+                      }}>
+                        <div style={{ 
+                          fontSize: '10px', 
+                          color: '#666', 
+                          marginBottom: '6px',
+                          fontWeight: 'bold'
+                        }}>
+                          Individual Kontaktor Controls:
+                        </div>
+                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px' }}>
+                          {kontaktorKeys.map((kontaktorKey, index) => {
+                            const kontaktorIsOn = areaStates[kontaktorKey];
+                            const kontaktorNum = index + 1;
+                            
+                            return (
+                              <button
+                                key={kontaktorKey}
+                                onClick={() => toggleKontaktor(kontaktorKey)}
+                                style={{
+                                  backgroundColor: kontaktorIsOn ? '#4caf50' : '#f44336',
+                                  color: 'white',
+                                  border: 'none',
+                                  padding: '4px 8px',
+                                  borderRadius: '3px',
+                                  cursor: 'pointer',
+                                  fontSize: '9px',
+                                  fontWeight: 'bold',
+                                  minWidth: '35px',
+                                  transition: 'all 0.2s ease',
+                                  flex: '1',
+                                  maxWidth: '70px'
+                                }}
+                              >
+                                K{kontaktorNum}
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    )}
                   </div>
                 );
               })}
@@ -2047,13 +5093,59 @@ function App() {
               <div style={{ fontSize: '12px', color: '#1976d2', fontWeight: 'bold' }}>
                 System Status
               </div>
-              <div style={{ fontSize: '11px', color: '#333', marginTop: '4px' }}>
-                Online: {Object.values(areaStates).filter(Boolean).length}/10 lanes
-              </div>
-              <div style={{ fontSize: '10px', color: '#666', marginTop: '2px' }}>
-                Plant 2: {Object.entries(areaStates).slice(0,5).filter(([, value]) => value).length}/5 ◆ 
-                Plant 1: {Object.entries(areaStates).slice(5,10).filter(([, value]) => value).length}/5
-              </div>
+              {/* Hitung area utama (main lane, bukan kontaktor) untuk status summary */}
+              {(() => {
+                // Area utama Plant 2: 4,1,2,3,5 (Lane A,B,C,D,Melting P2)
+                // Area utama Plant 1: 7,8,9,10,11 (AB Selatan, CD Selatan, AB Utara, CD Utara, Melting P1)
+                const plant2Nums = [4,1,2,3,5];
+                const plant1Nums = [7,8,9,10,11];
+                const getMainAreaKey = (num: number) => {
+                  const areaMapping: Record<number, string> = {
+                    1: 'fp1-lane-b', 2: 'fp1-lane-c', 3: 'fp1-lane-d', 4: 'fp1-lane-a', 5: 'fp1-lane-melting-p2',
+                    7: 'fp1-lane-ab-selatan', 8: 'fp1-lane-cd-selatan', 9: 'fp1-lane-ab-utara', 10: 'fp1-lane-cd-utara', 11: 'fp1-lane-melting-p1'
+                  };
+                  return areaMapping[num];
+                };
+                const plant2Keys = plant2Nums.map(getMainAreaKey);
+                const plant1Keys = plant1Nums.map(getMainAreaKey);
+                const onlinePlant2 = plant2Keys.filter(key => areaStates[key]).length;
+                const onlinePlant1 = plant1Keys.filter(key => areaStates[key]).length;
+                const totalPlant2 = plant2Keys.length;
+                const totalPlant1 = plant1Keys.length;
+                const totalOnline = onlinePlant2 + onlinePlant1;
+                const totalArea = totalPlant2 + totalPlant1;
+                return <>
+                  <div style={{ fontSize: '11px', color: '#333', marginTop: '4px' }}>
+                    Online: {totalOnline}/{totalArea} area utama
+                  </div>
+                  <div style={{ fontSize: '10px', color: '#666', marginTop: '2px' }}>
+                    {(() => {
+                      // Daftar kontaktor valid Plant 2 (A,B,C,D,Melting P2)
+                      const plant2Kontaktor = [
+                        'fp1-lane-a-k1','fp1-lane-a-k2','fp1-lane-a-k3',
+                        'fp1-lane-b-k1','fp1-lane-b-k2',
+                        'fp1-lane-c-k1','fp1-lane-c-k2','fp1-lane-c-k3',
+                        'fp1-lane-d-k1','fp1-lane-d-k2','fp1-lane-d-k3',
+                        'fp1-lane-melting-p2',    // Melting P2 sebagai kontaktor virtual (selalu dihitung)
+                      ];
+                      // Daftar kontaktor valid Plant 1 (AB Selatan, AB Utara, CD Selatan, CD Utara, Melting P1)
+                      const plant1Kontaktor = [
+                        'fp1-lane-ab-selatan-k1','fp1-lane-ab-selatan-k2',
+                        'fp1-lane-ab-utara-k1','fp1-lane-ab-utara-k2','fp1-lane-ab-utara-k3','fp1-lane-ab-utara-k4',
+                        'fp1-lane-cd-selatan-k1','fp1-lane-cd-selatan-k2',
+                        'fp1-lane-cd-utara-k1','fp1-lane-cd-utara-k2',
+                        'fp1-lane-melting-p1',    // Melting P1 sebagai kontaktor virtual (selalu dihitung)
+                      ];
+                      // Jika melting p2/p1 punya kontaktor, tambahkan key-nya ke array di atas
+                      const onlinePlant2K = plant2Kontaktor.filter(key => areaStates[key]).length;
+                      const onlinePlant1K = plant1Kontaktor.filter(key => areaStates[key]).length;
+                      return <>
+                        Plant 2: {onlinePlant2K}/{plant2Kontaktor.length} ◆ Plant 1: {onlinePlant1K}/{plant1Kontaktor.length}
+                      </>;
+                    })()}
+                  </div>
+                </>;
+              })()}
               
               {/* Save Status Message */}
               {saveMessage && (

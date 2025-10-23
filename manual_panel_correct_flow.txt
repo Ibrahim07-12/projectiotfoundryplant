@@ -1,0 +1,173 @@
+/*
+=============== MANUAL PANEL CONTROL - FLOW YANG BENAR ===============
+
+SKENARIO: Operator menekan push button K1 di panel
+
+┌─────────────────────────────────────────────────────────────────────┐
+│                    MANUAL PANEL OPERATION FLOW                     │
+├─────────────────────────────────────────────────────────────────────┤
+│                                                                     │
+│ 1. Operator PRESS Button K1 (Pin 25)                               │
+│    ↓                                                                │
+│ 2. ESP32 detects: digitalRead(MANUAL_K1_BUTTON) == LOW             │
+│    ↓                                                                │
+│ 3. ESP32 executes: activateContractor(1)                           │
+│    ↓                                                                │
+│ 4. Relay NO1 = LOW (300ms pulse) → Kontaktor 1 COIL energized      │
+│    ↓                                                                │
+│ 5. Kontaktor 1 main contacts CLOSE → 220V to Lampu                 │
+│    ↓                                                                │
+│ 6. Lampu menyala → Ada tegangan 220V di output                     │
+│    ↓                                                                │
+│ 7. Sensor tegangan (Pin 35) detect 220V → voltage1Detected = HIGH  │
+│    ↓                                                                │
+│ 8. ESP32 update displays:                                          │
+│    - Blynk.virtualWrite(V113, 1)  ← Button K1 di Blynk jadi ON     │
+│    - Firebase status K1 = "ON"    ← Website monitor jadi HIJAU     │
+│    - contactor1State = true                                        │
+│    ↓                                                                │
+│ 9. Operator RELEASE Button K1                                      │
+│    ↓                                                                │
+│10. ESP32 detects: digitalRead(MANUAL_K1_BUTTON) == HIGH            │
+│    ↓                                                                │
+│11. ESP32 executes: deactivateContractor(1)                         │
+│    ↓                                                                │
+│12. Relay NC1 = LOW (300ms pulse) → Kontaktor 1 COIL de-energized   │
+│    ↓                                                                │
+│13. Kontaktor 1 main contacts OPEN → No 220V to Lampu               │
+│    ↓                                                                │
+│14. Lampu mati → Tidak ada tegangan di output                       │
+│    ↓                                                                │
+│15. Sensor tegangan detect no voltage → voltage1Detected = LOW      │
+│    ↓                                                                │
+│16. ESP32 update displays:                                          │
+│    - Blynk.virtualWrite(V113, 0)  ← Button K1 di Blynk jadi OFF    │
+│    - Firebase status K1 = "OFF"   ← Website monitor jadi MERAH     │
+│    - contactor1State = false                                       │
+│                                                                     │
+└─────────────────────────────────────────────────────────────────────┘
+
+KEY POINTS:
+===========
+✅ Manual panel button → Physical kontaktor control
+✅ Kontaktor action → Lampu on/off → Sensor voltage change  
+✅ Sensor voltage → Update Blynk button status
+✅ Sensor voltage → Update website monitor color
+✅ Sinkronisasi penuh: Panel ↔ Blynk ↔ Website
+
+IMPLEMENTATION LOGIC:
+====================
+*/
+
+void checkManualPanelButtons() {
+  if (!autoModeEnabled) {  // Manual panel mode
+    
+    // Manual K1 Button Control
+    bool k1ButtonPressed = (digitalRead(MANUAL_K1_BUTTON) == LOW);
+    if (k1ButtonPressed != manualK1Pressed) {
+      manualK1Pressed = k1ButtonPressed;
+      
+      if (manualK1Pressed) {
+        // BUTTON PRESSED → KONTAKTOR ON
+        Serial.println("🔴 MANUAL PANEL: K1 Button PRESSED");
+        activateContractor(1);  // Kontaktor 1 energize
+        // ↓ Kontaktor closes → Lampu on → Sensor will detect voltage
+        // ↓ checkVoltageDetectors() akan update Blynk & Firebase
+        
+      } else {
+        // BUTTON RELEASED → KONTAKTOR OFF  
+        Serial.println("⚫ MANUAL PANEL: K1 Button RELEASED");
+        deactivateContractor(1);  // Kontaktor 1 de-energize
+        // ↓ Kontaktor opens → Lampu off → Sensor will detect no voltage
+        // ↓ checkVoltageDetectors() akan update Blynk & Firebase
+      }
+    }
+    
+    // Manual K2 Button Control (sama logic)
+    bool k2ButtonPressed = (digitalRead(MANUAL_K2_BUTTON) == LOW);
+    if (k2ButtonPressed != manualK2Pressed) {
+      manualK2Pressed = k2ButtonPressed;
+      
+      if (manualK2Pressed) {
+        Serial.println("🔴 MANUAL PANEL: K2 Button PRESSED");
+        activateContractor(2);
+      } else {
+        Serial.println("⚫ MANUAL PANEL: K2 Button RELEASED"); 
+        deactivateContractor(2);
+      }
+    }
+  }
+}
+
+void checkVoltageDetectors() {
+  // Sensor SELALU dibaca untuk update display
+  voltage1Detected = digitalRead(sensor1) == HIGH;
+  voltage2Detected = digitalRead(sensor2) == HIGH;
+
+  Serial.printf("Sensors: S1=%s, S2=%s | Mode=%s\n",
+               voltage1Detected ? "HIGH" : "LOW",
+               voltage2Detected ? "LOW" : "LOW", 
+               autoModeEnabled ? "AUTO" : "MANUAL");
+  
+  if (autoModeEnabled) {
+    // ========== AUTO MODE: SENSOR → KONTAKTOR CONTROL ==========
+    // Sensor reading memicu kontaktor action
+    
+    if (!voltage1Detected && !contactor1State) {
+      activateContractor(1);
+      Serial.println("🤖 AUTO: Sensor1 LOW → Activate K1");
+    } else if (voltage1Detected && contactor1State) {
+      deactivateContractor(1);
+      Serial.println("🤖 AUTO: Sensor1 HIGH → Deactivate K1");
+    }
+    
+  } else {
+    // ========== MANUAL MODE: SENSOR → DISPLAY UPDATE ONLY ==========
+    // Sensor reading TIDAK memicu kontaktor action
+    // Tapi sensor tetap update display Blynk & Firebase
+    
+    Serial.println("👤 MANUAL: Sensors for display only, buttons control contactors");
+  }
+  
+  // ========== SENSOR → DISPLAY UPDATE (SELALU AKTIF) ==========
+  // Ini yang penting: sensor voltage → update Blynk & website
+  
+  // Update Blynk button status berdasarkan KONTAKTOR STATE (bukan sensor)
+  Blynk.virtualWrite(V113, contactor1State ? 1 : 0);  // K1 button status
+  Blynk.virtualWrite(V114, contractor2State ? 1 : 0);  // K2 button status
+  
+  // Update Blynk sensor display
+  Blynk.virtualWrite(V121, voltage1Detected ? 1 : 0);  // Sensor 1 reading
+  Blynk.virtualWrite(V122, voltage2Detected ? 1 : 0);  // Sensor 2 reading
+  
+  // Update main switch
+  bool mainState = contractor1State || contactor2State;
+  Blynk.virtualWrite(V126, mainState ? 1 : 0);
+  Blynk.virtualWrite(V112, mainState ? 1 : 0);
+  
+  // Update Firebase untuk website monitor
+  updateFirebaseStatus();  // Website color berdasarkan kontaktor state
+}
+
+/*
+HASIL AKHIR:
+============
+
+MANUAL PANEL MODE:
+1. Press button K1 → Kontaktor 1 ON → Lampu nyala
+2. Sensor detect voltage → voltage1Detected = HIGH  
+3. Blynk V113 button = ON (sinkron dengan panel)
+4. Website K1 status = HIJAU (sinkron dengan panel)
+5. Release button K1 → Kontaktor 1 OFF → Lampu mati
+6. Sensor detect no voltage → voltage1Detected = LOW
+7. Blynk V113 button = OFF (sinkron dengan panel) 
+8. Website K1 status = MERAH (sinkron dengan panel)
+
+SINKRONISASI SEMPURNA:
+📱 Blynk App ↔ 🎛️ Manual Panel ↔ 🌐 Website Monitor
+
+Operator bisa kontrol dari mana saja:
+- Panel fisik → update ke Blynk & Website
+- Blynk app → update ke Panel & Website  
+- Website → update ke Panel & Blynk
+*/

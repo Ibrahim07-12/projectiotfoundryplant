@@ -1,0 +1,103 @@
+/*
+================== WIRING SAFETY UNTUK PANEL MANUAL CONTROL ==================
+
+KOMPONEN SAFETY TAMBAHAN:
+1. Emergency Push Button (Normally Closed) - Pin 26
+2. Mode Switch AUTO/MANUAL - Pin 25  
+3. Safety LED Indicator - Pin 2
+4. External Status Display (Optional)
+
+WIRING CONNECTIONS:
+==================
+
+📍 EMERGENCY BUTTON:
+   - Pin 26 (ESP32) ←→ Terminal 1 (Emergency Button)
+   - GND (ESP32) ←→ Terminal 2 (Emergency Button)  
+   - Button Type: Normally Open (NO) - saat ditekan = LOW signal
+
+📍 MODE SWITCH (AUTO/MANUAL):
+   - Pin 25 (ESP32) ←→ Terminal 1 (Toggle Switch)
+   - GND (ESP32) ←→ Terminal 2 (Toggle Switch)
+   - Switch Position: DOWN=AUTO (LOW), UP=MANUAL (HIGH)
+
+📍 SAFETY LED:
+   - Pin 2 (ESP32) ←→ LED Anode (+)
+   - GND (ESP32) ←→ LED Cathode (-) melalui resistor 220Ω
+   - LED Behavior: 
+     * SOLID ON = Manual Mode
+     * BLINKING = Auto Mode  
+     * RAPID FLASH = Emergency Stop
+
+📍 TERMINAL BLOCK CONNECTIONS:
+   Terminal 1: Emergency Button Input
+   Terminal 2: Mode Switch Input
+   Terminal 3: Safety LED Output
+   Terminal 4: GND Common
+   Terminal 5: +5V Supply (untuk indikator tambahan)
+   Terminal 6: RS485/Communication (future expansion)
+
+SAFETY INTERLOCK LOGIC:
+=======================
+
+┌─────────────────┬──────────────┬──────────────────┬─────────────────┐
+│ Emergency Btn   │ Mode Switch  │ System Action    │ LED Status      │
+├─────────────────┼──────────────┼──────────────────┼─────────────────┤
+│ NOT PRESSED     │ AUTO         │ Sensor Control   │ Blinking        │
+│ NOT PRESSED     │ MANUAL       │ Manual Control   │ Solid ON        │
+│ PRESSED         │ ANY          │ EMERGENCY STOP   │ Rapid Flash     │
+└─────────────────┴──────────────┴──────────────────┴─────────────────┘
+
+MOUNTING LAYOUT DI PANEL BOX:
+============================
+
+ ┌─────────────────────────────────────────┐
+ │  🔴 EMERGENCY    🎛️ AUTO/MANUAL         │ ← Panel Depan
+ │     STOP            SWITCH               │
+ │                                         │
+ │  💡 STATUS LED   📊 DISPLAY (Optional)  │
+ │                                         │
+ │  ┌─────────┐   ┌─────────────────────┐  │
+ │  │Terminal │   │     ESP32 + Relay   │  │ ← Inside Panel
+ │  │ Block   │   │      Modules        │  │
+ │  └─────────┘   └─────────────────────┘  │
+ └─────────────────────────────────────────┘
+
+SAFETY FEATURES IMPLEMENTED:
+============================
+
+✅ Physical Emergency Stop Button
+✅ Hardware Mode Selection Switch
+✅ Visual Status Indication
+✅ Software Safety Validation
+✅ Watchdog Timer Monitoring
+✅ Fail-Safe Relay Logic (optocoupler)
+✅ Emergency State Memory
+✅ Remote & Local Control Integration
+
+OPERATIONAL PROCEDURES:
+======================
+
+🔒 EMERGENCY PROCEDURE:
+   1. Press Emergency Button → All contactors OFF immediately
+   2. System switches to MANUAL mode automatically
+   3. Safety LED flashes rapidly (red)
+   4. Manual reset required to resume operation
+
+🎛️ NORMAL OPERATION:
+   AUTO Mode:  Sensors control contactors automatically
+   MANUAL Mode: User controls via Blynk app/web interface
+
+🔧 MAINTENANCE MODE:
+   1. Switch to MANUAL mode
+   2. Use Blynk app for individual contactor control
+   3. Monitor status via web interface
+   4. Check safety systems regularly
+
+WARNING INDICATORS:
+==================
+- Solid RED LED: Emergency state
+- Blinking GREEN: Auto mode active  
+- Solid GREEN: Manual mode ready
+- No LED: System fault/power issue
+
+*/

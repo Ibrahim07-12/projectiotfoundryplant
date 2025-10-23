@@ -1,0 +1,139 @@
+/*
+================ PERBEDAAN AUTO vs MANUAL PANEL MODE ================
+
+SKENARIO: Sensor1 berubah dari HIGH ke LOW (ada tegangan terdeteksi)
+
+┌─────────────────────────────────────────────────────────────────────┐
+│                        AUTO MODE (Sensor Aktif)                    │
+├─────────────────────────────────────────────────────────────────────┤
+│ 1. Sensor1: HIGH → LOW                                              │
+│ 2. ESP32: "Sensor1 LOW detected"                                    │
+│ 3. Logic: if (!voltage1Detected) { activateContractor(1); }        │
+│ 4. Action: Kontaktor 1 OTOMATIS ON                                  │
+│ 5. Result: Lampu menyala tanpa campur tangan manusia               │
+└─────────────────────────────────────────────────────────────────────┘
+
+┌─────────────────────────────────────────────────────────────────────┐
+│                   MANUAL PANEL MODE (Sensor Diabaikan)             │
+├─────────────────────────────────────────────────────────────────────┤
+│ 1. Sensor1: HIGH → LOW                                              │
+│ 2. ESP32: "Sensor1 LOW detected - IGNORED in manual mode"          │
+│ 3. Logic: Sensor logic di-skip, tidak eksekusi aktivasi            │
+│ 4. Action: Kontaktor 1 TIDAK berubah (tetap OFF)                   │
+│ 5. Result: Operator harus tekan push button untuk nyalakan lampu   │
+└─────────────────────────────────────────────────────────────────────┘
+
+KODE IMPLEMENTATION:
+===================
+*/
+
+void checkVoltageDetectors() {
+  // Sensor tetap dibaca (untuk monitoring dan display)
+  voltage1Detected = digitalRead(sensor1) == HIGH;
+  voltage2Detected = digitalRead(sensor2) == HIGH;
+
+  Serial.print("Sensor: ");
+  Serial.print("S1:" + String(voltage1Detected ? "HIGH " : "LOW "));
+  Serial.print("S2:" + String(voltage2Detected ? "HIGH " : "LOW "));
+  
+  // KONTROL LOGIC - Bergantung mode
+  if (autoModeEnabled) {
+    // ========== AUTO MODE: SENSOR MENGONTROL KONTAKTOR ==========
+    Serial.print(" | 🤖 AUTO MODE");
+    
+    bool oldContractor1 = contractor1State;
+    bool oldContractor2 = contractor2State;
+    
+    // Sensor 1 → Kontaktor 1 (OTOMATIS)
+    if (voltage1Detected) {
+      if (contractor1State) {
+        deactivateContractor(1);
+        Serial.print(" | S1→K1:OFF");
+      }
+    } else {
+      if (!contractor1State) {
+        activateContractor(1);  // ← SENSOR MENGONTROL
+        Serial.print(" | S1→K1:ON");
+      }
+    }
+    
+    // Sensor 2 → Kontaktor 2 (OTOMATIS)
+    if (voltage2Detected) {
+      if (contractor2State) {
+        deactivateContractor(2);
+        Serial.print(" | S2→K2:OFF");
+      }
+    } else {
+      if (!contractor2State) {
+        activateContractor(2);  // ← SENSOR MENGONTROL
+        Serial.print(" | S2→K2:ON");
+      }
+    }
+    
+  } else {
+    // ========== MANUAL MODE: SENSOR DIABAIKAN ==========
+    Serial.print(" | 👤 MANUAL PANEL MODE");
+    Serial.print(" | Sensors READ but IGNORED for control");
+    
+    // Sensor logic di-skip
+    // Tidak ada activateContractor() atau deactivateContractor() dari sensor
+    // Hanya push button yang bisa kontrol kontaktor
+  }
+  
+  Serial.println();
+  
+  // Update display (sensor tetap ditampilkan untuk monitoring)
+  Blynk.virtualWrite(V121, voltage1Detected ? 1 : 0);  // Sensor status
+  Blynk.virtualWrite(V122, voltage2Detected ? 1 : 0);  // Sensor status
+  Blynk.virtualWrite(V113, contractor1State ? 1 : 0);   // Kontaktor status
+  Blynk.virtualWrite(V114, contractor2State ? 1 : 0);   // Kontaktor status
+}
+
+/*
+PENGERTIAN "DIABAIKAN":
+======================
+
+❌ BUKAN berarti sensor tidak dibaca
+❌ BUKAN berarti sensor rusak atau mati
+
+✅ Sensor TETAP dibaca (untuk monitoring & display)
+✅ Sensor TIDAK mengeksekusi kontrol kontaktor
+✅ Hanya push button yang bisa kontrol kontaktor
+✅ Operator punya kontrol penuh
+
+ANALOGI SEDERHANA:
+==================
+
+AUTO MODE = Mobil Self-Driving
+- Sensor jalan mendeteksi → mobil belok otomatis
+- Driver tidak perlu kontrol
+
+MANUAL MODE = Mobil Manual
+- Sensor jalan tetap membaca kondisi jalan
+- Tapi driver yang harus belok sendiri
+- Sensor hanya untuk informasi
+
+KEUNTUNGAN MANUAL MODE:
+======================
+✅ Kontrol penuh operator
+✅ Bypass sensor yang error
+✅ Operasi darurat
+✅ Testing individual kontaktor
+✅ Maintenance mode
+✅ Override otomasi jika diperlukan
+
+SKENARIO PENGGUNAAN:
+===================
+
+Contoh 1: Sensor Rusak
+- Auto mode: Kontaktor tidak akan nyala (sensor error)
+- Manual mode: Operator masih bisa nyalakan dengan push button
+
+Contoh 2: Testing
+- Auto mode: Harus simulate sensor condition
+- Manual mode: Langsung test kontaktor tanpa sensor
+
+Contoh 3: Emergency
+- Auto mode: Menunggu sensor condition
+- Manual mode: Immediate control by operator
+*/

@@ -1,0 +1,111 @@
+/*
+==================== WIRING MANUAL PANEL CONTROL ====================
+
+PANEL BOX LAYOUT:
+┌─────────────────────────────────────────────────────────────┐
+│  🚨 EMERGENCY    🔄 AUTO/MANUAL     💡 STATUS              │ 
+│     STOP            SWITCH           LED                    │
+│                                                             │
+│  🔴 MANUAL K1    🔴 MANUAL K2      📊 DISPLAY              │
+│   PUSH BUTTON    PUSH BUTTON       (Optional)              │
+│                                                             │
+│  ┌─────────────────────────────────────────────────────┐   │
+│  │           ESP32 + RELAY MODULES                     │   │
+│  │  ┌──────────┐  ┌──────────────────────────────┐    │   │
+│  │  │Terminal  │  │     ESP32 DEVKIT             │    │   │
+│  │  │Block     │  │  + 4CH Relay Module          │    │   │
+│  │  └──────────┘  └──────────────────────────────┘    │   │
+│  └─────────────────────────────────────────────────────┘   │
+└─────────────────────────────────────────────────────────────┘
+
+KONEKSI FISIK:
+==============
+
+📍 AUTO/MANUAL TOGGLE SWITCH:
+   ESP32 Pin 33 ←→ Common Terminal (Toggle Switch)
+   GND (ESP32)  ←→ NC Terminal (Normally Closed)
+   +3.3V        ←→ NO Terminal (Normally Open)
+   
+   Switch Logic: UP = AUTO (HIGH), DOWN = MANUAL (LOW)
+
+📍 MANUAL K1 PUSH BUTTON:
+   ESP32 Pin 25 ←→ Terminal 1 (Push Button)
+   GND (ESP32)  ←→ Terminal 2 (Push Button)
+   
+   Button Logic: Not Pressed = HIGH, Pressed = LOW
+
+📍 MANUAL K2 PUSH BUTTON:
+   ESP32 Pin 26 ←→ Terminal 1 (Push Button)  
+   GND (ESP32)  ←→ Terminal 2 (Push Button)
+   
+   Button Logic: Not Pressed = HIGH, Pressed = LOW
+
+📍 STATUS LED:
+   ESP32 Pin 2  ←→ LED Anode (+) through 220Ω resistor
+   GND (ESP32)  ←→ LED Cathode (-)
+   
+   LED Logic: AUTO = Blinking, MANUAL = Solid ON
+
+📍 EMERGENCY STOP (Existing):
+   ESP32 Pin 35 ←→ Emergency Button (Mushroom type)
+   GND (ESP32)  ←→ Emergency Button Common
+
+TERMINAL BLOCK ASSIGNMENT:
+=========================
+Terminal 1: AUTO/MANUAL Switch
+Terminal 2: Manual K1 Button  
+Terminal 3: Manual K2 Button
+Terminal 4: Emergency Stop
+Terminal 5: Status LED (+)
+Terminal 6: GND Common
+
+OPERATIONAL LOGIC:
+==================
+
+┌─────────────────┬──────────────────┬────────────────────────────┐
+│ AUTO/MANUAL     │ Button States    │ Kontaktor Control Method   │
+│ Switch          │                  │                            │
+├─────────────────┼──────────────────┼────────────────────────────┤
+│ AUTO (UP)       │ Buttons Ignored  │ Sensor1→K1, Sensor2→K2    │
+│ MANUAL (DOWN)   │ K1 Btn→K1        │ Push Button Direct Control │
+│ MANUAL (DOWN)   │ K2 Btn→K2        │ Push Button Direct Control │
+│ ANY             │ Emergency→ALL OFF│ Emergency Stop Override    │
+└─────────────────┴──────────────────┴────────────────────────────┘
+
+MODE INDICATORS:
+===============
+- Status LED BLINKING = AUTO Mode (sensor control)
+- Status LED SOLID ON = MANUAL Mode (button control)  
+- Status LED RAPID FLASH = Emergency Stop active
+- No LED = System fault/power issue
+
+SAFETY FEATURES:
+===============
+✅ Physical Emergency Stop - immediate all OFF
+✅ Mode Switch - clear AUTO/MANUAL indication
+✅ Button Debouncing - prevents false triggers
+✅ Visual Status - LED indicates current mode
+✅ Sensor Override - manual mode ignores sensors
+✅ Fall-back Safety - emergency works in any mode
+
+USAGE PROCEDURE:
+===============
+1. NORMAL OPERATION (AUTO):
+   - Set switch to AUTO (UP)
+   - LED blinks = sensors control contactors
+   - S1 LOW→K1 ON, S1 HIGH→K1 OFF
+   - S2 LOW→K2 ON, S2 HIGH→K2 OFF
+
+2. MANUAL OPERATION:
+   - Set switch to MANUAL (DOWN) 
+   - LED solid ON = button control active
+   - Press K1 button = K1 ON (hold to keep ON)
+   - Press K2 button = K2 ON (hold to keep ON)
+   - Release button = contactor OFF
+
+3. EMERGENCY PROCEDURE:
+   - Press Emergency Stop = ALL contactors OFF immediately
+   - System enters safe state
+   - Manual reset required to resume
+
+*/

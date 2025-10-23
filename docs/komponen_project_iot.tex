@@ -1,0 +1,320 @@
+\documentclass[12pt,a4paper]{article}
+\usepackage[utf8]{inputenc}
+\usepackage[indonesian]{babel}
+\usepackage{graphicx}
+\usepackage{float}
+\usepackage{geometry}
+\usepackage{fancyhdr}
+\usepackage{titlesec}
+\usepackage{xcolor}
+\usepackage{tcolorbox}
+\usepackage{enumitem}
+\usepackage{hyperref}
+
+% Page setup
+\geometry{left=2.5cm, right=2.5cm, top=3cm, bottom=3cm}
+\pagestyle{fancy}
+\fancyhf{}
+\fancyhead[L]{\textbf{IoT Foundry Plant Monitoring System}}
+\fancyhead[R]{\thepage}
+\fancyfoot[C]{Dokumentasi Komponen Hardware}
+
+% Title formatting
+\titleformat{\section}{\Large\bfseries\color{blue!70!black}}{\thesection}{1em}{}
+\titleformat{\subsection}{\large\bfseries\color{green!60!black}}{\thesubsection}{1em}{}
+\titleformat{\subsubsection}{\normalsize\bfseries\color{red!60!black}}{\thesubsubsection}{1em}{}
+
+% Custom boxes
+\newtcolorbox{specbox}[1]{
+    colback=gray!10,
+    colframe=gray!50,
+    title=\textbf{#1},
+    fonttitle=\bfseries,
+    rounded corners
+}
+
+\newtcolorbox{funcbox}[1]{
+    colback=blue!5,
+    colframe=blue!40,
+    title=\textbf{#1},
+    fonttitle=\bfseries,
+    rounded corners
+}
+
+\begin{document}
+
+% Title Page
+\begin{titlepage}
+\centering
+\vspace*{2cm}
+{\Huge\textbf{DOKUMENTASI KOMPONEN HARDWARE}}\\[0.5cm]
+{\LARGE\textcolor{blue}{IoT Foundry Plant Monitoring System}}\\[1.5cm]
+
+\begin{tcolorbox}[colback=orange!10, colframe=orange!60, width=0.8\textwidth]
+\centering
+\textbf{\Large Sistem Monitoring dan Kontrol Lampu Penerangan}\\
+\textbf{\Large Foundry Plant Berbasis ESP32}
+\end{tcolorbox}
+
+\vspace{2cm}
+\textbf{\large Oleh:}\\
+\textbf{\large Ibrahim}\\[1cm]
+
+\textbf{\large Program Studi Teknik Elektro}\\
+\textbf{\large Universitas}\\[2cm]
+
+\textbf{\large Oktober 2025}
+\end{titlepage}
+
+\newpage
+\tableofcontents
+\newpage
+
+% Introduction
+\section{Pendahuluan}
+
+Sistem IoT Foundry Plant Monitoring merupakan sistem monitoring dan kontrol lampu penerangan berbasis mikrokontroler ESP32 yang terintegrasi dengan Firebase dan aplikasi web. Sistem ini dirancang untuk mengontrol dan memonitor status lampu penerangan di area foundry plant secara real-time dengan fitur power monitoring.
+
+\subsection{Tujuan Sistem}
+\begin{itemize}
+\item Monitoring status lampu penerangan secara real-time
+\item Kontrol lampu dari jarak jauh melalui web interface
+\item Monitoring konsumsi daya listrik
+\item Sistem pelaporan dan logging otomatis
+\item Integrasi dengan database cloud (Firebase)
+\end{itemize}
+
+\newpage
+
+% Main Components
+\section{Komponen Utama Sistem}
+
+\subsection{Komponen dan Fungsinya}
+
+Berikut merupakan komponen utama yang digunakan dalam perancangan sistem \textit{Smart Lighting Control System} beserta fungsi masing-masing komponen. Setiap komponen memiliki peran penting dalam proses pengendalian, pemantauan, dan komunikasi antar perangkat.
+
+\begin{enumerate}[leftmargin=0pt,itemsep=1em]
+
+\item \textbf{ESP32 ESP-32 DEVKITC V4 WROOM-32U WIFI BLUETOOTH DEVELOPMENT BOARD}
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.6\textwidth]{images/esp32_devkit.png}
+\caption{ESP32 DEVKITC V4 WROOM-32U Development Board}
+\label{fig:esp32}
+\end{figure}
+
+ESP32 ESP-32 DEVKITC V4 WROOM-32U merupakan mikrokontroler utama yang menjadi otak dari sistem IoT Foundry Plant Monitoring. Mikrokontroler ini menggunakan dual-core Tensilica LX6 32-bit yang beroperasi pada frekuensi 240MHz dengan memori 520KB SRAM dan 4MB Flash. Komponen ini dilengkapi dengan 30 pin GPIO yang dapat dikonfigurasi sesuai kebutuhan, ADC 12-bit dengan 18 channel, serta fitur komunikasi WiFi 802.11 b/g/n dan Bluetooth 4.2. Tegangan operasinya adalah 3.3V dengan input 5V melalui USB dan memiliki dimensi 55.2 × 28.2 × 13mm.
+
+Fungsi utama ESP32 dalam sistem adalah sebagai unit pemrosesan utama yang menjalankan algoritma kontrol dan monitoring seluruh sistem. Melalui fitur WiFi built-in, ESP32 melakukan komunikasi dengan internet untuk integrasi dengan cloud database Firebase. Sebagai interface sensor, ESP32 membaca data dari berbagai sensor termasuk sensor tegangan dan arus untuk monitoring power consumption. Mikrokontroler ini juga bertanggung jawab mengontrol modul relay untuk switching lampu serta melakukan data processing seperti kalkulasi daya, energi, dan logging data secara real-time.
+
+\item \textbf{Modul Relay 4 Channel 12V DC (Normally Open - NO \& Normally Closed - NC)}
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=\textwidth]{images/relay_4ch_no_nc_combo.png}
+\caption{Modul Relay 4 Channel 12V DC - Normally Open dan Normally Closed}
+\label{fig:relay4ch_combo}
+\end{figure}
+
+Modul Relay 4 Channel 12V DC tersedia dalam dua konfigurasi yaitu Normally Open (NO) dan Normally Closed (NC) yang merupakan komponen switching utama untuk mengontrol beban lampu penerangan. Kedua jenis relay memiliki spesifikasi teknis yang identik dengan 4 channel independen, tegangan coil 12V DC, kompatibel dengan kontrol logic 3.3V/5V TTL, rating kontak 10A pada 250VAC atau 10A pada 30VDC, dilengkapi isolasi optocoupler dan indikator LED untuk setiap channel.
+
+Perbedaan utama terletak pada konfigurasi kontak dimana relay Normally Open (NO) memiliki kontak dalam kondisi terbuka ketika tidak ada sinyal kontrol dan akan menutup ketika relay diaktifkan, cocok untuk aplikasi kontrol normal lampu penerangan. Sementara relay Normally Closed (NC) memiliki kontak dalam kondisi tertutup ketika tidak ada sinyal kontrol dan akan membuka ketika diaktifkan, memberikan keuntungan fail-safe operation dimana lampu tetap menyala saat gangguan sistem kontrol. Fungsi utama kedua jenis relay adalah untuk switching daya tinggi mengontrol beban lampu AC 220V dengan isolasi galvanik yang memisahkan circuit kontrol dari circuit daya. Relay NO digunakan untuk kontrol lampu normal dan aplikasi switching standar, sedangkan relay NC digunakan untuk emergency lighting control, backup switching mechanism, safety interlocking, serta reverse logic control. Kombinasi penggunaan kedua jenis relay memberikan fleksibilitas sistem dengan fail-safe operation dan redundansi yang tinggi untuk reliability sistem penerangan foundry plant.
+
+\item \textbf{Sensor Detektor Tegangan 220V AC PLN Out 5V 3.3V untuk Arduino ESP32 ESP8266}
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.5\textwidth]{images/voltage_detector.png}
+\caption{High Voltage Detector Module 220V AC}
+\label{fig:voltage_detector}
+\end{figure}
+
+Sensor Detektor Tegangan 220V AC PLN merupakan modul high voltage detector yang dirancang khusus untuk aplikasi Arduino, ESP32, dan ESP8266. Modul ini mampu mendeteksi input voltage AC 80V hingga 250V dan menghasilkan output signal digital 3.3V/5V TTL. Menggunakan metode deteksi optocoupler isolation dengan response time kurang dari 50ms, modul ini dapat beroperasi pada suhu kerja -10°C hingga +85°C dan telah bersertifikat CE untuk standar keamanan.
+
+Fungsi utama sensor ini dalam sistem adalah sebagai feedback status untuk mendeteksi apakah lampu benar-benar menyala atau mati, melakukan safety monitoring dengan memantau keberadaan tegangan PLN secara real-time. Sensor ini juga berperan dalam fault detection untuk mendeteksi gangguan pada circuit lampu, menyediakan input untuk logika kontrol otomatis, serta melakukan system verification untuk memverifikasi bahwa perintah relay telah berhasil dieksekusi dengan benar.
+
+\item \textbf{ESP32 30 Pin GPIO Expansion Base Breakout Board Sensor IO Shield}
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.6\textwidth]{images/gpio_expansion.png}
+\caption{ESP32 30 Pin GPIO Expansion Base Board}
+\label{fig:gpio_expansion}
+\end{figure}
+
+ESP32 30 Pin GPIO Expansion Base Breakout Board merupakan sensor IO shield yang dirancang untuk mempermudah akses ke seluruh pin GPIO ESP32. Board ini mengekspos 30 pin GPIO dengan layout yang breadboard friendly, terbuat dari material PCB FR4 berkualitas tinggi, dan kompatibel dengan seri ESP32 DEVKIT. Fitur tambahan yang dimiliki meliputi power LED dan reset button untuk kemudahan operasi.
+
+Fungsi utama expansion board ini adalah sebagai pin expansion yang mempermudah akses ke semua pin ESP32 tanpa perlu soldering langsung ke development board. Sebagai base untuk prototyping, board ini mempermudah pengembangan dan testing sistem sebelum implementasi final. Board ini juga berfungsi sebagai modular connection yang memudahkan koneksi dengan jumper wire dan bertindak sebagai central hub untuk semua koneksi sensor dalam sistem, memberikan organisasi wiring yang lebih rapi dan terstruktur.
+
+\item \textbf{PCB DOT MATRIX THRU HOLE DOUBLE LAYER 18X12CM 18*12CM}
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.6\textwidth]{images/pcb_dotmatrix.png}
+\caption{PCB DOT Matrix Thru Hole Double Layer}
+\label{fig:pcb_dotmatrix}
+\end{figure}
+
+PCB DOT Matrix Thru Hole Double Layer dengan dimensi 18×12cm merupakan platform dudukan khusus untuk terminal block dalam sistem IoT Foundry Plant Monitoring. PCB ini memiliki dimensi 18cm × 12cm dengan double layer copper, menggunakan thru-hole plated, terbuat dari material FR4 fiberglass dengan ketebalan 1.6mm standard, dan memiliki grid pattern dengan spacing 2.54mm yang sesuai dengan standar komponen elektronik.
+
+PCB ini berfungsi sebagai mounting base untuk terminal block yang dipasang di dalam box enclosure. Terminal block dipasang di samping box dengan cara membor box sesuai dengan jumlah kaki terminal block, sementara PCB berfungsi sebagai dudukan dan platform koneksi di dalam box. Sebagai soldering platform, PCB ini menyediakan titik koneksi permanen untuk kabel AWG yang disolder langsung ke PCB, menghubungkan terminal block eksternal dengan komponen internal sistem. PCB memberikan dukungan mekanis yang kuat untuk jalur kabel dan koneksi, serta menyediakan ground plane untuk distribusi ground dan mengurangi noise elektrik. Hasil akhir yang diperoleh adalah sistem wiring yang terorganisir dengan terminal block terpasang rapi di samping box dan koneksi internal yang aman melalui PCB dudukan.
+
+\item \textbf{Terminal Blok TB Screw HB9500 Terminal Kabel - 6 PIN}
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.5\textwidth]{images/terminal_block.png}
+\caption{Terminal Block Screw 6 PIN}
+\label{fig:terminal_block}
+\end{figure}
+
+Terminal Blok TB Screw HB9500 dengan 6 PIN merupakan komponen penghubung kabel eksternal yang dipasang di samping box enclosure. Terminal ini memiliki 6 posisi terminal yang dapat menampung wire gauge AWG 12-22 (0.5-2.5mm²), dengan current rating 15A per terminal dan voltage rating 300V AC/DC. Spacing antar terminal adalah 5.08mm dengan menggunakan screw type Phillips head M3 untuk pengikatan kabel.
+
+Terminal block ini dipasang dengan cara membor box enclosure sesuai jumlah kaki terminal block, sehingga bagian terminal untuk koneksi kabel berada di luar box sementara kaki terminal masuk ke dalam box. Di dalam box, kaki terminal ini terhubung ke PCB DOT Matrix yang berfungsi sebagai dudukan dan platform koneksi melalui soldering dengan kabel AWG. Terminal block berfungsi sebagai external connection point yang memberikan akses mudah untuk koneksi kabel lapangan tanpa membuka box, memudahkan maintenance dan troubleshooting dari luar enclosure. Komponen ini memungkinkan professional wiring dengan sistem modular dimana kabel eksternal dapat dilepas-pasang dari luar box, sementara koneksi internal tetap aman terlindungi di dalam enclosure. Sistem ini memberikan kemudahan service dan modifikasi tanpa mengganggu komponen sensitif di dalam box.
+
+\item \textbf{Kabel Jumper 40 PCS 20 CM (Male to Male, Male to Female, Female to Female)}
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=\textwidth]{images/jumper_wires_complete_set.png}
+\caption{Set Lengkap Kabel Jumper - Male to Male, Male to Female, Female to Female}
+\label{fig:jumper_wires_complete}
+\end{figure}
+
+Kabel Jumper 40 PCS 20 CM merupakan set lengkap kabel penghubung yang terdiri dari tiga jenis konfigurasi connector yaitu Male to Male, Male to Female, dan Female to Female. Setiap set memiliki spesifikasi yang sama dengan panjang 20cm standard, terdiri dari 40 pieces per set, menggunakan AWG 26 dengan connector gold plated pins, dan tersedia dalam multiple colors untuk kemudahan identifikasi dan organisasi wiring.
+
+Kabel jumper Male to Male berfungsi untuk prototyping dengan menyediakan koneksi sementara selama tahap development, menghubungkan pin male dari expansion board ke pin male pada breadboard atau komponen lain. Kabel jumper Male to Female berfungsi sebagai interface connection antara pin male dari mikrokontroler dengan socket female pada sensor atau modul, sangat berguna untuk sensor interfacing dan modular connectivity. Kabel jumper Female to Female digunakan untuk extension connection, memperpanjang koneksi antara dua pin male atau membuat bridge connection antar komponen. Ketiga jenis kabel jumper ini memberikan fleksibilitas maksimal dalam wiring sistem, memungkinkan berbagai kombinasi koneksi, menyediakan color coding untuk identifikasi jalur sinyal, serta memudahkan testing dan debugging circuit dengan koneksi yang cepat, dapat diandalkan, dan mudah dimodifikasi sesuai kebutuhan development dan maintenance sistem.
+
+\item \textbf{Kabel AWG 16 Warna Merah \& Hitam Per Meter}
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.8\textwidth]{images/awg16_red_black_pair.png}
+\caption{Pasangan Kabel AWG 16 Warna Merah dan Hitam}
+\label{fig:awg16_pair}
+\end{figure}
+
+Kabel AWG 16 warna merah dan hitam per meter merupakan pasangan kabel daya dengan wire gauge AWG 16 (1.3mm²) yang mampu menangani current rating 13A continuous dengan voltage rating hingga 600V. Kedua kabel menggunakan insulasi PVC dan dapat beroperasi pada temperature range -40°C hingga +105°C. Warna merah dan hitam mengikuti standar internasional untuk sistem kelistrikan dimana merah untuk jalur positive/live dan hitam untuk jalur negative/neutral/ground.
+
+Kabel AWG 16 merah berfungsi sebagai power distribution untuk mendistribusikan daya positif ke berbagai komponen sistem, sedangkan kabel hitam berfungsi sebagai ground/neutral distribution untuk melengkapi circuit power supply. Sebagai high current path, pasangan kabel ini mampu menangani arus tinggi yang diperlukan untuk relay dan beban lampu dalam sistem foundry plant monitoring. Kombinasi warna merah dan hitam memberikan color coding standar untuk identifikasi polaritas yang aman, memastikan safety wiring dengan rating yang sesuai untuk aplikasi industrial. Kabel hitam menyediakan return path untuk arus listrik dan safety ground untuk proteksi electrical safety, serta memastikan proper grounding untuk mengurangi noise dan interferensi elektrik. Pasangan kabel ini digunakan untuk permanent installation dalam panel listrik dengan ketahanan jangka panjang dan memberikan complete power circuit yang aman sesuai standar kelistrikan industri.
+
+\item \textbf{Adaptor 5V Jack DC 5.5mm x 2.1mm Power Supply Charger Adapter - 2A}
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.5\textwidth]{images/power_adapter.png}
+\caption{Power Supply Adapter 5V 2A DC Jack}
+\label{fig:power_adapter}
+\end{figure}
+
+Adaptor 5V Jack DC dengan spesifikasi 5.5mm x 2.1mm Power Supply Charger Adapter 2A merupakan sumber daya utama sistem. Adaptor ini memiliki input AC 100-240V 50/60Hz universal, output DC 5V ± 5%, current maximum 2A, connector DC Jack 5.5mm × 2.1mm, efficiency lebih dari 80%, serta dilengkapi proteksi over-voltage, over-current, dan short-circuit.
+
+Adaptor ini berfungsi sebagai main power source yang menyediakan sumber daya utama untuk ESP32 dan seluruh sistem. Sebagai stable voltage supplier, adaptor memastikan tegangan 5V yang stabil untuk operasi optimal mikrokontroler dan komponen pendukung. Current rating 2A memberikan arus yang sufficient untuk sistem, sensor, dan komponen tambahan. Universal input memungkinkan penggunaan dengan berbagai tegangan AC di seluruh dunia, serta safety features built-in memberikan proteksi terhadap kondisi abnormal seperti overvoltage, overcurrent, dan short circuit.
+
+\item \textbf{Metal Spacer M3 Kuningan Brass Speser 3mm Dudukan PCB - 10mm \& 40mm}
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.8\textwidth]{images/metal_spacer_combo.png}
+\caption{Metal Spacer M3 Kuningan 10mm dan 40mm}
+\label{fig:metal_spacer_combo}
+\end{figure}
+
+Metal Spacer M3 Kuningan Brass Speser 3mm merupakan komponen mechanical mounting yang tersedia dalam dua ukuran yaitu 10mm dan 40mm. Komponen ini terbuat dari material kuningan (brass) berkualitas tinggi dengan thread M3 male-female, diameter outer 6mm, dan finish natural brass color yang tahan korosi. Kedua ukuran spacer diaplikasikan sebagai PCB mounting standoff untuk memberikan clearance yang sesuai dengan kebutuhan instalasi.
+
+Metal spacer 10mm berfungsi untuk standard PCB mounting dengan clearance standar, ideal untuk compact assembly dimana space terbatas namun tetap memerlukan isolasi yang proper dan cocok untuk PCB dengan komponen standar. Sementara metal spacer 40mm memberikan clearance tinggi antara PCB dengan base enclosure, sangat cocok untuk aplikasi yang memerlukan ruang ekstra untuk komponen tinggi atau routing kabel yang kompleks. Kedua jenis spacer berfungsi sebagai mechanical support yang kuat dan stabil, electrical isolation untuk mengisolasi PCB dari enclosure metal, memastikan professional assembly yang rapi sesuai standar industri, serta memberikan vibration dampening yang efektif untuk mengurangi getaran dan shock pada PCB. Kombinasi penggunaan kedua ukuran spacer memberikan fleksibilitas dalam desain layout PCB dengan berbagai ketinggian komponen.
+
+\item \textbf{Antena 6dBi 2.4GHz 5GHz Dual Band WiFi RP-SMA + 35cm Kabel u.FL Black}
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.6\textwidth]{images/wifi_antenna.png}
+\caption{Antena WiFi Dual Band 6dBi dengan Kabel u.FL}
+\label{fig:wifi_antenna}
+\end{figure}
+
+Antena 6dBi 2.4GHz 5GHz Dual Band WiFi RP-SMA dengan 35cm kabel u.FL black merupakan komponen komunikasi yang dirancang untuk meningkatkan performa WiFi ESP32. Antena ini mendukung dual band frequency 2.4GHz dan 5GHz dengan gain 6dBi, menggunakan connector RP-SMA male, dilengkapi kabel 35cm u.FL to RP-SMA, memiliki VSWR kurang dari 2.0, dan menggunakan polarization vertical linear.
+
+Antena ini berfungsi sebagai WiFi range extension yang secara signifikan meningkatkan jangkauan WiFi ESP32 hingga beberapa kali lipat dari antena internal. Komponen ini meningkatkan signal quality dengan memberikan penerimaan dan transmisi sinyal yang lebih baik. Keunggulan external mounting memungkinkan antena dipasang di luar enclosure metal yang dapat menghalangi sinyal RF. Dual band support memberikan fleksibilitas untuk menggunakan network 2.4GHz maupun 5GHz sesuai kebutuhan, serta memberikan reliable connection yang lebih stabil dan konsisten ke jaringan WiFi bahkan dalam kondisi interferensi tinggi.
+
+\item \textbf{Box Kotak Panel Listrik Waterproof IP65}
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.6\textwidth]{images/waterproof_box.png}
+\caption{Enclosure Panel Listrik Waterproof IP65}
+\label{fig:waterproof_box}
+\end{figure}
+
+Box Kotak Panel Listrik Waterproof IP65 merupakan enclosure proteksi utama untuk seluruh sistem IoT Foundry Plant Monitoring. Box ini memiliki IP rating IP65 yang memberikan proteksi dustproof dan water resistant, terbuat dari material ABS plastic atau metal yang tahan lama, mampu beroperasi pada temperature range -40°C hingga +85°C, mendukung wall mount atau DIN rail mounting, dilengkapi hinged door dengan lock mechanism, serta multiple cable glands untuk entry kabel.
+
+Box IP65 berfungsi sebagai environmental protection yang memberikan perlindungan komprehensif dari debu, air, dan kondisi lingkungan harsh di area foundry plant. Sebagai component housing, box ini menyediakan ruang yang aman dan terorganisir untuk semua komponen elektronik sistem. Enclosure ini bertindak sebagai safety enclosure yang melindungi operator dari kontak langsung dengan komponen bertegangan. Box ini memungkinkan professional installation yang sesuai dengan standar industri kelistrikan, serta menyediakan maintenance access yang mudah melalui hinged door untuk keperluan troubleshooting, service, dan upgrade sistem tanpa mengganggu instalasi utama.
+
+\end{enumerate}
+
+\section{Diagram Sistem dan Interconnection}
+
+\subsection{Block Diagram Sistem}
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=\textwidth]{images/system_block_diagram.png}
+\caption{Block Diagram Sistem IoT Foundry Plant Monitoring}
+\label{fig:system_block}
+\end{figure}
+
+\subsection{Wiring Diagram}
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=\textwidth]{images/wiring_diagram.png}
+\caption{Wiring Diagram Lengkap Sistem}
+\label{fig:wiring_diagram}
+\end{figure}
+
+\subsection{Instalasi Terminal Block dan PCB}
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.8\textwidth]{images/terminal_pcb_installation.png}
+\caption{Detail Instalasi Terminal Block dengan PCB Dudukan}
+\label{fig:terminal_pcb_installation}
+\end{figure}
+
+Instalasi terminal block dalam sistem menggunakan metode mounting eksternal dengan dudukan internal PCB. Box enclosure dibor sesuai dengan jumlah kaki terminal block, dimana bagian screw terminal berada di luar box untuk akses kabel lapangan, sementara kaki terminal masuk ke dalam box dan disolder ke PCB DOT Matrix 18×12cm yang berfungsi sebagai dudukan. Kabel AWG 16 merah dan hitam disolder dari kaki terminal block ke jalur PCB, kemudian dari PCB terdistribusi ke komponen internal seperti ESP32, relay module, dan power supply. Sistem ini memberikan keuntungan modular wiring dimana maintenance dapat dilakukan dari luar box tanpa membuka enclosure, sementara koneksi internal tetap aman dan terorganisir melalui PCB platform.
+
+\section{Spesifikasi Sistem Overall}
+
+\begin{specbox}{Spesifikasi Teknis Sistem}
+\begin{itemize}
+\item \textbf{Input Voltage:} AC 220V ± 10\%
+\item \textbf{Control Voltage:} DC 5V/3.3V
+\item \textbf{Load Capacity:} 4 × 10A @ 220VAC
+\item \textbf{Communication:} WiFi 802.11 b/g/n
+\item \textbf{Operating Temperature:} 0°C to +50°C
+\item \textbf{Humidity:} 10-85\% RH non-condensing
+\item \textbf{Protection Class:} IP65 (with proper enclosure)
+\end{itemize}
+\end{specbox}
+
+\begin{funcbox}{Fitur Sistem}
+\begin{enumerate}
+\item \textbf{Real-time Monitoring:} Status lampu dalam real-time
+\item \textbf{Remote Control:} Kontrol dari web interface
+\item \textbf{Data Logging:} Penyimpanan data ke Firebase cloud
+\item \textbf{Power Monitoring:} Monitoring konsumsi daya listrik
+\item \textbf{Multi-device Support:} Mendukung multiple ESP32 devices
+\item \textbf{Mobile Responsive:} Interface yang responsive di mobile
+\end{enumerate}
+\end{funcbox}
+
+\section{Kesimpulan}
+
+Sistem IoT Foundry Plant Monitoring System yang telah dirancang menggunakan komponen-komponen yang telah dipilih secara cermat untuk memenuhi kebutuhan monitoring dan kontrol lampu penerangan industri. Setiap komponen memiliki peran spesifik dalam sistem dan berkontribusi terhadap keandalan dan fungsionalitas sistem secara keseluruhan.
+
+Dengan menggunakan ESP32 sebagai mikrokontroler utama, sistem memiliki kemampuan WiFi built-in yang memungkinkan integrasi dengan cloud service Firebase untuk monitoring real-time dan penyimpanan data. Modul relay 4 channel memberikan kemampuan switching untuk beban daya tinggi, sementara sensor detektor tegangan memberikan feedback status yang akurat.
+
+Komponen pendukung seperti PCB, terminal block, kabel, dan enclosure memastikan sistem dapat diimplementasikan secara professional dan aman sesuai dengan standar industri.
+
+\end{document}
